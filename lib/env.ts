@@ -5,6 +5,20 @@ export function getSiteUrl(): string {
   );
 }
 
+export function getSiteUrlFromHeaders(headers: Headers): string {
+  const forwardedHost = headers.get("x-forwarded-host");
+  const host = forwardedHost || headers.get("host");
+
+  if (!host) {
+    return getSiteUrl();
+  }
+
+  const proto =
+    headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+
+  return `${proto}://${host}`;
+}
+
 export interface SupabasePublicEnv {
   url: string;
   anonKey: string;

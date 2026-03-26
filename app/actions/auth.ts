@@ -1,8 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getSiteUrl } from "@/lib/env";
+import { getSiteUrlFromHeaders } from "@/lib/env";
 import { syncProfileForCurrentUser } from "@/lib/auth";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -45,12 +46,13 @@ export async function signupWithPasswordAction(formData: FormData) {
 
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const siteUrl = getSiteUrlFromHeaders(await headers());
 
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${getSiteUrl()}/auth/callback`,
+      emailRedirectTo: `${siteUrl}/auth/callback`,
     },
   });
 
@@ -68,10 +70,12 @@ export async function signInWithGoogleAction() {
     loginRedirect("/login", "Supabase is not configured yet.");
   }
 
+  const siteUrl = getSiteUrlFromHeaders(await headers());
+
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${getSiteUrl()}/auth/callback`,
+      redirectTo: `${siteUrl}/auth/callback`,
     },
   });
 

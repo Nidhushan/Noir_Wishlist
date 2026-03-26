@@ -2,16 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { TopbarAuth } from "@/components/topbar-auth";
+import { getSiteUrl } from "@/lib/env";
 
 import "./globals.css";
 
 export const dynamic = "force-dynamic";
 
-const metadataBase = process.env.NEXT_PUBLIC_SITE_URL
-  ? new URL(process.env.NEXT_PUBLIC_SITE_URL)
-  : process.env.VERCEL_URL
-    ? new URL(`https://${process.env.VERCEL_URL}`)
-    : new URL("http://localhost:3000");
+const metadataBase = new URL(getSiteUrl());
 
 export const metadata: Metadata = {
   metadataBase,
