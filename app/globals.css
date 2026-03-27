@@ -135,6 +135,16 @@ img {
   cursor: pointer;
 }
 
+.topbarButton:disabled,
+.smallActionButton:disabled,
+.searchButton:disabled,
+.paginationButton:disabled {
+  opacity: 0.62;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
 .topbarButton {
   min-height: 44px;
 }
@@ -385,6 +395,7 @@ img {
 }
 
 .animeCard {
+  position: relative;
   min-width: 0;
   height: 100%;
   border-radius: var(--radius-md);
@@ -406,10 +417,101 @@ img {
   box-shadow: 0 24px 56px rgba(5, 0, 19, 0.54);
 }
 
+.animeCardMenuWrap {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+}
+
+.animeCardMenu {
+  position: relative;
+}
+
+.animeCardMenu summary {
+  list-style: none;
+}
+
+.animeCardMenu summary::-webkit-details-marker {
+  display: none;
+}
+
+.animeCardMenuButton {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid rgba(194, 119, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(12, 8, 25, 0.9);
+  backdrop-filter: blur(10px);
+  cursor: pointer;
+}
+
+.animeCardMenuButton.active {
+  border-color: rgba(194, 119, 255, 0.4);
+  box-shadow: 0 10px 24px rgba(91, 26, 181, 0.22);
+}
+
+.animeCardMenuButton span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: #f3ecff;
+}
+
+.animeCardMenuPanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 192px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(194, 119, 255, 0.18);
+  background:
+    linear-gradient(180deg, rgba(194, 119, 255, 0.06), rgba(255, 255, 255, 0)),
+    rgba(11, 8, 23, 0.96);
+  box-shadow: 0 24px 56px rgba(5, 0, 19, 0.54);
+}
+
+.animeCardMenuList {
+  display: grid;
+  gap: 6px;
+}
+
+.animeCardMenuItem {
+  display: flex;
+  width: 100%;
+  min-height: 38px;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0 12px;
+  border: 1px solid rgba(194, 119, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(20, 13, 38, 0.88);
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.animeCardMenuItem.active {
+  border-color: rgba(194, 119, 255, 0.3);
+  color: var(--accent-strong);
+}
+
 .animeCardLink {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 100%;
+  min-height: 100%;
 }
 
 .animeCardMedia,
@@ -452,6 +554,82 @@ img {
   gap: 10px;
   height: 100%;
   padding: 16px;
+}
+
+.saveAnimeForm {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.saveAnimeForm.compact {
+  gap: 6px;
+}
+
+.saveAnimeControls {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  min-width: 0;
+}
+
+.saveAnimeStatus {
+  flex: 1;
+  min-width: 0;
+}
+
+.saveAnimeStatus .searchSelect {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border-radius: 999px;
+  font-size: 0.88rem;
+}
+
+.saveAnimeForm.compact .saveAnimeControls {
+  align-items: center;
+}
+
+.saveAnimeForm.compact .saveAnimeStatus .searchSelect {
+  min-height: 36px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+}
+
+.saveAnimeForm.compact .smallActionButton {
+  min-height: 36px;
+  padding: 0 10px;
+  white-space: nowrap;
+}
+
+.saveAnimeSummary {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.actionFeedback {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.actionFeedback.compact {
+  padding: 8px 10px;
+  font-size: 0.8rem;
+}
+
+.actionFeedback.success {
+  background: rgba(157, 77, 255, 0.1);
+  color: #e7d8ff;
+}
+
+.actionFeedback.error {
+  background: rgba(255, 122, 168, 0.12);
+  color: #ffc6d8;
 }
 
 .animeCardTopline {
@@ -503,6 +681,12 @@ img {
   color: #e5d4ff;
   font-size: 0.84rem;
   font-weight: 700;
+}
+
+.savedStatePill {
+  border-color: rgba(194, 119, 255, 0.3);
+  background: rgba(157, 77, 255, 0.18);
+  color: #f4eaff;
 }
 
 .statusPanel {
@@ -757,19 +941,64 @@ img {
   font-weight: 700;
 }
 
+.profileNav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.profileNavLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(194, 119, 255, 0.14);
+  background: rgba(18, 12, 34, 0.84);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.profileNavLink:hover {
+  transform: translateY(-1px);
+  border-color: rgba(194, 119, 255, 0.28);
+  color: var(--text);
+}
+
+.profileNavLink.active {
+  border-color: rgba(194, 119, 255, 0.34);
+  background: linear-gradient(135deg, rgba(157, 77, 255, 0.22), rgba(125, 45, 255, 0.18));
+  color: #faf5ff;
+  box-shadow: 0 12px 26px rgba(91, 26, 181, 0.2);
+}
+
 .savedAnimeGrid {
   display: grid;
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 18px;
+  align-items: stretch;
 }
 
 .savedAnimeCard {
   display: grid;
-  grid-template-columns: 110px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-rows: auto 1fr;
+  gap: 14px;
+  min-width: 0;
+  height: 100%;
   padding: 14px;
-  border-radius: 18px;
+  border-radius: 20px;
   border: 1px solid rgba(194, 119, 255, 0.12);
-  background: rgba(12, 8, 25, 0.78);
+  background:
+    linear-gradient(180deg, rgba(194, 119, 255, 0.05), rgba(255, 255, 255, 0)),
+    rgba(12, 8, 25, 0.78);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
 }
 
 .savedAnimeMedia {
@@ -783,30 +1012,68 @@ img {
   display: grid;
   gap: 12px;
   min-width: 0;
+  align-content: start;
+}
+
+.savedAnimeHeader {
+  display: grid;
+  gap: 6px;
 }
 
 .savedAnimeTitle {
-  margin: 4px 0 0;
-  font-size: 1.18rem;
-  line-height: 1.2;
+  margin: 0;
+  min-height: 2.8rem;
+  font-size: 1.08rem;
+  line-height: 1.22;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.savedAnimeTitleLink {
+  width: fit-content;
+}
+
+.savedAnimeTitleLink:hover .savedAnimeTitle {
+  color: var(--accent-strong);
 }
 
 .savedAnimeMeta {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--text-muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  line-height: 1.45;
 }
 
 .savedAnimeActions,
 .savedAnimeInline {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  align-items: end;
+  display: grid;
+  gap: 8px;
 }
 
 .savedAnimeInline {
-  flex: 1;
+  grid-template-columns: 1fr;
+  align-items: end;
+}
+
+.savedAnimeInline.end {
+  grid-template-columns: 1fr;
+}
+
+.savedAnimeMediaLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.savedAnimeInline .smallActionButton,
+.savedAnimeInline .searchSelect {
+  width: 100%;
+}
+
+.savedAnimeActions .actionFeedback {
+  margin-top: -2px;
 }
 
 .inlineForm {
@@ -956,11 +1223,11 @@ img {
   }
 
   .savedAnimeCard {
-    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
   }
 
   .savedAnimeMedia {
-    max-width: 150px;
+    max-width: none;
   }
 }
 
@@ -1091,6 +1358,36 @@ img {
     width: 100%;
   }
 
+  .profileNav {
+    width: 100%;
+  }
+
+  .saveAnimeControls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .animeCardMenuWrap {
+    top: 10px;
+    right: 10px;
+  }
+
+  .saveAnimeStatus,
+  .saveAnimeStatus .searchSelect,
+  .savedAnimeField,
+  .savedAnimeInline > * {
+    width: 100%;
+  }
+
+  .savedAnimeInline {
+    grid-template-columns: 1fr;
+  }
+
+  .savedAnimeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+
   .detailPoster,
   .loadingDetail .detailPoster {
     max-width: 220px;
@@ -1103,6 +1400,10 @@ img {
 
 @media (max-width: 420px) {
   .animeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .savedAnimeGrid {
     grid-template-columns: 1fr;
   }
 

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { AnimeCardMenu } from "@/components/anime-card-menu";
 import type { AnimeCard as AnimeCardType } from "@/lib/anilist";
 import {
   formatCountry,
@@ -9,14 +10,32 @@ import {
   formatSeason,
   formatStatus,
 } from "@/lib/formatters";
+import type { UserAnimeState } from "@/lib/user-anime.types";
 
 interface AnimeCardProps {
   anime: AnimeCardType;
+  authenticated?: boolean;
+  savedState?: UserAnimeState | null;
+  returnTo?: string;
 }
 
-export function AnimeCard({ anime }: AnimeCardProps) {
+export function AnimeCard({
+  anime,
+  authenticated = false,
+  savedState = null,
+  returnTo = "/search",
+}: AnimeCardProps) {
   return (
     <article className="animeCard">
+      <div className="animeCardMenuWrap">
+        <AnimeCardMenu
+          anilistId={anime.anilistId}
+          authenticated={authenticated}
+          currentStatus={savedState?.listStatus ?? null}
+          returnTo={returnTo}
+        />
+      </div>
+
       <Link className="animeCardLink" href={`/anime/${anime.anilistId}`}>
         <div className="animeCardMedia">
           {anime.coverImage ? (
@@ -47,6 +66,7 @@ export function AnimeCard({ anime }: AnimeCardProps) {
           <div className="animePills">
             <span>{formatStatus(anime.status)}</span>
             <span>{formatCountry(anime.countryOfOrigin)}</span>
+            {savedState ? <span className="savedStatePill">{savedState.listStatus}</span> : null}
           </div>
         </div>
       </Link>

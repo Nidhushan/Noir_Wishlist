@@ -5,7 +5,11 @@ import { SetupNotice } from "@/components/setup-notice";
 import { UserAnimeCard } from "@/components/user-anime-card";
 import { getCurrentAppUser } from "@/lib/auth";
 import { hasSupabasePublicEnv } from "@/lib/env";
-import { getCurrentUserAnimeByStatus } from "@/lib/user-anime";
+import {
+  getCurrentUserAnimeSection,
+  USER_LIST_STATUSES,
+  type UserListStatus,
+} from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +20,21 @@ const SECTION_LABELS: Record<string, string> = {
   dropped: "Dropped",
 };
 
-export default async function ProfilePage() {
+function normalizeListStatus(value: string | undefined): UserListStatus {
+  if (value === "wishlist" || value === "watching" || value === "completed" || value === "dropped") {
+    return value;
+  }
+
+  return "wishlist";
+}
+
+interface ProfilePageProps {
+  searchParams: Promise<{
+    list?: string;
+  }>;
+}
+
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   if (!hasSupabasePublicEnv()) {
     return (
       <main className="mainContent">
@@ -31,7 +49,10 @@ export default async function ProfilePage() {
     redirect("/login");
   }
 
-  const sections = await getCurrentUserAnimeByStatus();
+  const { list } = await searchParams;
+  const activeStatus = normalizeListStatus(list);
+  const items = await getCurrentUserAnimeSection(activeStatus);
+  const returnTo = `/profile?list=${activeStatus}`;
 
   return (
     <main className="mainContent">
@@ -52,30 +73,40 @@ export default async function ProfilePage() {
         </div>
       </section>
 
-      {sections?.map((section) => (
-        <section key={section.status} className="detailPanel">
-          <div className="sectionHeader">
-            <div>
-              <p className="eyebrow">Library</p>
-              <h2>{SECTION_LABELS[section.status]}</h2>
-            </div>
-            <p className="sectionMeta">{section.items.length} saved</p>
-          </div>
+      <section className="detailPanel">
+        <div className="profileNav" aria-label="Library sections">
+          {USER_LIST_STATUSES.map((status) => (
+            <Link
+              key={status}
+              className={`profileNavLink${status === activeStatus ? " active" : ""}`}
+              href={`/profile?list=${status}`}
+            >
+              {SECTION_LABELS[status]}
+            </Link>
+          ))}
+        </div>
 
-          {section.items.length ? (
-            <div className="savedAnimeGrid">
-              {section.items.map((item) => (
-                <UserAnimeCard key={item.id} item={item} />
-              ))}
-            </div>
-          ) : (
-            <div className="emptyState">
-              <h2>Nothing here yet</h2>
-              <p>Search for anime and save titles to start filling this section.</p>
-            </div>
-          )}
-        </section>
-      ))}
+        <div className="sectionHeader">
+          <div>
+            <p className="eyebrow">Library</p>
+            <h2>{SECTION_LABELS[activeStatus]}</h2>
+          </div>
+          <p className="sectionMeta">{items?.length ?? 0} saved</p>
+        </div>
+
+        {items?.length ? (
+          <div className="savedAnimeGrid">
+            {items.map((item) => (
+              <UserAnimeCard key={item.id} item={item} returnTo={returnTo} />
+            ))}
+          </div>
+        ) : (
+          <div className="emptyState">
+            <h2>Nothing here yet</h2>
+            <p>Search for anime and save titles to start filling this section.</p>
+          </div>
+        )}
+      </section>
     </main>
   );
 }

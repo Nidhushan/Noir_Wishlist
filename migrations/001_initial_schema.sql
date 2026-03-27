@@ -1,5 +1,6 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
+  username text,
   display_name text,
   email text,
   avatar_url text,
@@ -105,6 +106,17 @@ create index if not exists anime_last_synced_idx
 
 create index if not exists anime_popularity_idx
   on public.anime (popularity desc);
+
+create unique index if not exists profiles_username_unique_idx
+  on public.profiles (username)
+  where username is not null;
+
+alter table public.profiles
+  drop constraint if exists profiles_username_format_check;
+
+alter table public.profiles
+  add constraint profiles_username_format_check
+  check (username is null or username ~ '^[a-z0-9_]{3,10}$');
 
 create index if not exists user_anime_user_status_updated_idx
   on public.user_anime (user_id, list_status, updated_at desc);

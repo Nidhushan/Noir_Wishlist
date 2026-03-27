@@ -45,6 +45,20 @@ export function AuthCard({
           </div>
 
           <form action={emailAction} className="authStack">
+            {mode === "signup" ? (
+              <label className="authField">
+                <span>Name</span>
+                <input
+                  className="searchInput"
+                  type="text"
+                  name="username"
+                  minLength={3}
+                  maxLength={10}
+                  pattern="[A-Za-z0-9_]+"
+                  required
+                />
+              </label>
+            ) : null}
             <label className="authField">
               <span>Email</span>
               <input className="searchInput" type="email" name="email" required />

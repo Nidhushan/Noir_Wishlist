@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { SaveAnimeForm } from "@/components/save-anime-form";
 import { StatusPanel } from "@/components/status-panel";
 import { AniListError } from "@/lib/anilist";
+import { getCurrentAuthUser } from "@/lib/auth";
 import { getHydratedAnimeDetail } from "@/lib/catalog";
 import {
   formatCountry,
@@ -15,6 +16,7 @@ import {
   formatSeason,
   formatStatus,
 } from "@/lib/formatters";
+import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +102,11 @@ export default async function AnimeDetailPage({
     notFound();
   }
 
+  const user = anime ? await getCurrentAuthUser() : null;
+  const savedState = anime && user
+    ? (await getCurrentUserAnimeMapByAniListIds([anime.anilistId])).get(anime.anilistId) ?? null
+    : null;
+
   return (
     <main className="mainContent">
       {errorMessage || !anime ? (
@@ -163,7 +170,13 @@ export default async function AnimeDetailPage({
                   <Link className="paginationButton" href="/">
                     Back to home
                   </Link>
-                  <SaveAnimeForm anilistId={anime.anilistId} returnTo={`/anime/${anime.anilistId}`} />
+                  <SaveAnimeForm
+                    anilistId={anime.anilistId}
+                    authenticated={Boolean(user)}
+                    currentStatus={savedState?.listStatus ?? null}
+                    listStatus={savedState?.listStatus ?? "wishlist"}
+                    returnTo={`/anime/${anime.anilistId}`}
+                  />
                   {anime.siteUrl ? (
                     <a
                       className="paginationButton"

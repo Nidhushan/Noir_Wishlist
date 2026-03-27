@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { getSiteUrlFromHeaders } from "@/lib/env";
 import { syncProfileForCurrentUser } from "@/lib/auth";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function loginRedirect(target: string, error?: string): never {
@@ -15,6 +16,43 @@ function loginRedirect(target: string, error?: string): never {
   }
 
   redirect(params.size ? `${target}?${params.toString()}` : target);
+}
+
+function normalizeUsername(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function validateUsername(value: string): string | null {
+  if (!value) {
+    return "Name is required.";
+  }
+
+  if (!/^[a-z0-9_]+$/.test(value)) {
+    return "Name can only use lowercase letters, numbers, and underscores.";
+  }
+
+  if (value.length < 3 || value.length > 10) {
+    return "Name must be between 3 and 10 characters.";
+  }
+
+  return null;
+}
+
+async function isUsernameTaken(username: string): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+
+  if (!admin) {
+    return false;
+  }
+
+  const { data, error } = await admin
+    .from("profiles")
+    .select("id")
+    .eq("username", username)
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(data) && !error;
 }
 
 export async function loginWithPasswordAction(formData: FormData) {
@@ -46,18 +84,58 @@ export async function signupWithPasswordAction(formData: FormData) {
 
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
+  const username = normalizeUsername(String(formData.get("username") || ""));
   const siteUrl = getSiteUrlFromHeaders(await headers());
+  const usernameError = validateUsername(username);
 
-  const { error } = await supabase.auth.signUp({
+  if (usernameError) {
+    loginRedirect("/signup", usernameError);
+  }
+
+  if (await isUsernameTaken(username)) {
+    loginRedirect("/signup", "That name is already taken.");
+  }
+
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${siteUrl}/auth/callback`,
+      data: {
+        username,
+        display_name: username,
+      },
     },
   });
 
   if (error) {
     loginRedirect("/signup", error.message);
+  }
+
+  const userId = data.user?.id;
+  const admin = createSupabaseAdminClient();
+
+  if (userId && admin) {
+    const { error: profileError } = await admin.from("profiles").upsert(
+      {
+        id: userId,
+        username,
+        display_name: username,
+        email,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    );
+
+    if (profileError) {
+      await admin.auth.admin.deleteUser(userId).catch(() => undefined);
+      loginRedirect(
+        "/signup",
+        profileError.code === "23505"
+          ? "That name is already taken."
+          : "Your profile could not be created.",
+      );
+    }
   }
 
   redirect("/login?message=Check+your+email+to+finish+signing+up.");

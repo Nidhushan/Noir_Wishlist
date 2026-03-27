@@ -4,6 +4,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export interface AppUser {
   id: string;
+  username: string | null;
   email: string | null;
   displayName: string | null;
   avatarUrl: string | null;
@@ -39,20 +40,40 @@ export async function syncProfileForCurrentUser() {
     return;
   }
 
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("username, display_name, avatar_url")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const metadataUsername =
+    typeof user.user_metadata?.username === "string"
+      ? user.user_metadata.username
+      : null;
+  const metadataDisplayName =
+    typeof user.user_metadata?.display_name === "string"
+      ? user.user_metadata.display_name
+      : typeof user.user_metadata?.full_name === "string"
+        ? user.user_metadata.full_name
+        : typeof user.user_metadata?.name === "string"
+          ? user.user_metadata.name
+          : null;
+  const metadataAvatarUrl =
+    typeof user.user_metadata?.avatar_url === "string"
+      ? user.user_metadata.avatar_url
+      : null;
+
   await supabase.from("profiles").upsert(
     {
       id: user.id,
+      username: existingProfile?.username ?? metadataUsername,
       email: user.email ?? null,
       display_name:
-        typeof user.user_metadata?.full_name === "string"
-          ? user.user_metadata.full_name
-          : typeof user.user_metadata?.name === "string"
-            ? user.user_metadata.name
-            : null,
-      avatar_url:
-        typeof user.user_metadata?.avatar_url === "string"
-          ? user.user_metadata.avatar_url
-          : null,
+        metadataDisplayName ??
+        existingProfile?.display_name ??
+        existingProfile?.username ??
+        metadataUsername,
+      avatar_url: metadataAvatarUrl ?? existingProfile?.avatar_url ?? null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "id" },
@@ -76,20 +97,33 @@ export async function getCurrentAppUser(): Promise<AppUser | null> {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, avatar_url, role")
+    .select("username, display_name, avatar_url, role")
     .eq("id", user.id)
     .maybeSingle();
 
-  return {
-    id: user.id,
-    email: user.email ?? null,
-    displayName:
-      profile?.display_name ??
-      (typeof user.user_metadata?.full_name === "string"
+  const metadataDisplayName =
+    typeof user.user_metadata?.display_name === "string"
+      ? user.user_metadata.display_name
+      : typeof user.user_metadata?.full_name === "string"
         ? user.user_metadata.full_name
         : typeof user.user_metadata?.name === "string"
           ? user.user_metadata.name
-          : null),
+          : null;
+  const preferredDisplayName =
+    profile?.display_name && profile.display_name !== user.email
+      ? profile.display_name
+      : profile?.username ?? null;
+
+  return {
+    id: user.id,
+    username: profile?.username ?? null,
+    email: user.email ?? null,
+    displayName:
+      preferredDisplayName ??
+      metadataDisplayName ??
+      profile?.display_name ??
+      profile?.username ??
+      null,
     avatarUrl:
       profile?.avatar_url ??
       (typeof user.user_metadata?.avatar_url === "string"

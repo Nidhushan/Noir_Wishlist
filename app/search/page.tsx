@@ -11,7 +11,9 @@ import {
   SEARCH_SORT_OPTIONS,
   searchAnime,
 } from "@/lib/anilist";
+import { getCurrentAuthUser } from "@/lib/auth";
 import { upsertAnimeBasicRecords } from "@/lib/catalog";
+import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +62,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const currentSortLabel =
     SEARCH_SORT_OPTIONS.find((option) => option.value === currentSort)?.label ||
     "Best match";
+  const currentSearchHref = buildSearchHref(query, currentPage, currentSort);
   let results:
     | Awaited<ReturnType<typeof searchAnime>>
     | null = null;
@@ -124,6 +127,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     redirect(buildSearchHref(query, 1, currentSort));
   }
 
+  const user = await getCurrentAuthUser();
+  const savedStateByAniListId =
+    user && results?.items.length
+      ? await getCurrentUserAnimeMapByAniListIds(results.items.map((item) => item.anilistId))
+      : new Map();
+
   return (
     <main className="mainContent">
       <section className="hero compactHero">
@@ -147,6 +156,9 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             items={results?.items ?? []}
             emptyTitle="No anime matched that query"
             emptyMessage="Try a different spelling, a shorter phrase, or the Romaji title."
+            authenticated={Boolean(user)}
+            returnTo={currentSearchHref}
+            savedStateByAniListId={savedStateByAniListId}
           />
 
           <Pagination

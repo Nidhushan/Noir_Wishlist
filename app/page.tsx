@@ -2,7 +2,9 @@ import { AnimeGrid } from "@/components/anime-grid";
 import { SearchForm } from "@/components/search-form";
 import { StatusPanel } from "@/components/status-panel";
 import { AniListError, getTrendingAnime } from "@/lib/anilist";
+import { getCurrentAuthUser } from "@/lib/auth";
 import { upsertAnimeBasicRecords } from "@/lib/catalog";
+import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +23,12 @@ export default async function HomePage() {
         ? error.message
         : "Something went wrong while loading the trending anime feed.";
   }
+
+  const user = await getCurrentAuthUser();
+  const savedStateByAniListId =
+    user && trending?.items.length
+      ? await getCurrentUserAnimeMapByAniListIds(trending.items.map((item) => item.anilistId))
+      : new Map();
 
   return (
     <main className="mainContent">
@@ -59,6 +67,9 @@ export default async function HomePage() {
             items={trending?.items ?? []}
             emptyTitle="No trending anime available"
             emptyMessage="AniList returned an empty result. Try refreshing again in a few minutes."
+            authenticated={Boolean(user)}
+            returnTo="/"
+            savedStateByAniListId={savedStateByAniListId}
           />
         </>
       )}
