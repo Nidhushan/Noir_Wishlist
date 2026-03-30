@@ -5,14 +5,9 @@ import { AnimeGrid } from "@/components/anime-grid";
 import { Pagination } from "@/components/pagination";
 import { SearchForm } from "@/components/search-form";
 import { StatusPanel } from "@/components/status-panel";
-import {
-  AniListError,
-  normalizeSearchSort,
-  SEARCH_SORT_OPTIONS,
-  searchAnime,
-} from "@/lib/anilist";
+import { normalizeSearchSort, SEARCH_SORT_OPTIONS } from "@/lib/anilist";
 import { getCurrentAuthUser } from "@/lib/auth";
-import { upsertAnimeBasicRecords } from "@/lib/catalog";
+import { searchCatalogAnime } from "@/lib/catalog";
 import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
@@ -64,7 +59,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     "Best match";
   const currentSearchHref = buildSearchHref(query, currentPage, currentSort);
   let results:
-    | Awaited<ReturnType<typeof searchAnime>>
+    | Awaited<ReturnType<typeof searchCatalogAnime>>
     | null = null;
   let errorMessage: string | null = null;
 
@@ -114,13 +109,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   }
 
   try {
-    results = await searchAnime(query, currentPage, currentSort);
-    await upsertAnimeBasicRecords(results.items);
+    results = await searchCatalogAnime(query, currentPage, currentSort);
   } catch (error) {
     errorMessage =
-      error instanceof AniListError
-        ? error.message
-        : "AniList could not complete the search request.";
+      error instanceof Error ? error.message : "The catalog could not complete the search request.";
   }
 
   if (!errorMessage && results && currentPage > 1 && results.items.length === 0) {
@@ -141,8 +133,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <h1>{errorMessage ? "Search is temporarily unavailable." : `Results for “${query}”`}</h1>
           <p className="heroText">
             {errorMessage
-              ? "The AniList API did not complete the request successfully."
-              : `AniList returned ${results?.total.toLocaleString()} matching titles, sorted by ${currentSortLabel.toLowerCase()}.`}
+              ? "Noir could not complete the search request."
+              : results?.source === "database"
+                ? `Noir returned ${results?.total.toLocaleString()} local catalog matches, sorted by ${currentSortLabel.toLowerCase()}.`
+                : `Noir fetched ${results?.total.toLocaleString()} live AniList matches because the local catalog did not have enough results.`}
           </p>
         </div>
         <SearchForm initialQuery={query} initialSort={currentSort} compact />
@@ -152,10 +146,14 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <StatusPanel tone="error" title="Search failed" message={errorMessage} />
       ) : (
         <>
+          {results?.notice ? (
+            <StatusPanel title="Catalog source" message={results.notice} />
+          ) : null}
+
           <AnimeGrid
             items={results?.items ?? []}
             emptyTitle="No anime matched that query"
-            emptyMessage="Try a different spelling, a shorter phrase, or the Romaji title."
+            emptyMessage="Try a different spelling, a shorter phrase, or wait for the catalog to grow."
             authenticated={Boolean(user)}
             returnTo={currentSearchHref}
             savedStateByAniListId={savedStateByAniListId}

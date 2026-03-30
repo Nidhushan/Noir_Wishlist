@@ -7,7 +7,7 @@ import { SaveAnimeForm } from "@/components/save-anime-form";
 import { StatusPanel } from "@/components/status-panel";
 import { AniListError } from "@/lib/anilist";
 import { getCurrentAuthUser } from "@/lib/auth";
-import { getHydratedAnimeDetail } from "@/lib/catalog";
+import { getCatalogAnimeDetail } from "@/lib/catalog";
 import {
   formatCountry,
   formatEpisodes,
@@ -39,7 +39,8 @@ export async function generateMetadata({
   }
 
   try {
-    const anime = await getHydratedAnimeDetail(numericId);
+    const result = await getCatalogAnimeDetail(numericId);
+    const anime = result.anime;
 
     if (!anime) {
       return {
@@ -76,8 +77,8 @@ export default async function AnimeDetailPage({
 }: AnimeDetailPageProps) {
   const { anilistId } = await params;
   const numericId = Number(anilistId);
-  let anime:
-    | Awaited<ReturnType<typeof getHydratedAnimeDetail>>
+  let detailResult:
+    | Awaited<ReturnType<typeof getCatalogAnimeDetail>>
     | null = null;
   let errorMessage: string | null = null;
 
@@ -86,7 +87,7 @@ export default async function AnimeDetailPage({
   }
 
   try {
-    anime = await getHydratedAnimeDetail(numericId);
+    detailResult = await getCatalogAnimeDetail(numericId);
   } catch (error) {
     if (error instanceof AniListError && error.code === "invalid_request") {
       notFound();
@@ -97,6 +98,8 @@ export default async function AnimeDetailPage({
         ? error.message
         : "AniList could not load the anime detail page.";
   }
+
+  const anime = detailResult?.anime ?? null;
 
   if (!anime && !errorMessage) {
     notFound();
@@ -117,6 +120,10 @@ export default async function AnimeDetailPage({
         />
       ) : (
         <>
+          {detailResult?.notice ? (
+            <StatusPanel title="Catalog source" message={detailResult.notice} />
+          ) : null}
+
           <section className="detailHero">
             <div className="detailBackdrop">
               {anime.bannerImage ? (

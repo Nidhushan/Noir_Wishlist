@@ -1,25 +1,23 @@
 import { AnimeGrid } from "@/components/anime-grid";
 import { SearchForm } from "@/components/search-form";
 import { StatusPanel } from "@/components/status-panel";
-import { AniListError, getTrendingAnime } from "@/lib/anilist";
 import { getCurrentAuthUser } from "@/lib/auth";
-import { upsertAnimeBasicRecords } from "@/lib/catalog";
+import { getCatalogHomepageFeed } from "@/lib/catalog";
 import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   let trending:
-    | Awaited<ReturnType<typeof getTrendingAnime>>
+    | Awaited<ReturnType<typeof getCatalogHomepageFeed>>
     | null = null;
   let errorMessage: string | null = null;
 
   try {
-    trending = await getTrendingAnime(1);
-    await upsertAnimeBasicRecords(trending.items);
+    trending = await getCatalogHomepageFeed(1);
   } catch (error) {
     errorMessage =
-      error instanceof AniListError
+      error instanceof Error
         ? error.message
         : "Something went wrong while loading the trending anime feed.";
   }
@@ -38,8 +36,10 @@ export default async function HomePage() {
           <h1>Track what is hot right now before you build everything else.</h1>
           <p className="heroText">
             {errorMessage
-              ? "AniList is temporarily unavailable. Search will be available once upstream requests recover."
-              : "This first release uses AniList as the live source of truth, with search and deep-linkable detail pages ready for the next phase."}
+              ? "Noir could not load the catalog feed right now."
+              : trending?.source === "database"
+                ? "The homepage now serves from Noir's local catalog first, which keeps it faster and less dependent on live AniList calls."
+                : "Noir fell back to live AniList data because the local catalog did not have enough feed data yet."}
           </p>
         </div>
         <SearchForm />
@@ -53,13 +53,19 @@ export default async function HomePage() {
         />
       ) : (
         <>
+          {trending?.notice ? (
+            <StatusPanel title="Catalog source" message={trending.notice} />
+          ) : null}
+
           <section className="sectionHeader">
             <div>
               <p className="eyebrow">Home feed</p>
               <h2>Trending Anime</h2>
             </div>
             <p className="sectionMeta">
-              {trending?.total.toLocaleString()} titles in the AniList result set
+              {trending?.source === "database"
+                ? `${trending?.total.toLocaleString()} titles in the local catalog`
+                : `${trending?.total.toLocaleString()} titles in the AniList result set`}
             </p>
           </section>
 

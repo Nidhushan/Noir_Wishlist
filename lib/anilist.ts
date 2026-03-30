@@ -46,7 +46,7 @@ interface AniListPageInfo {
 
 interface AniListGraphQLResponse<T> {
   data?: T;
-  errors?: Array<{ message: string }>;
+  errors?: Array<{ message: string; status?: number; hint?: string }>;
 }
 
 export interface AnimeCard {
@@ -116,6 +116,13 @@ export class AniListError extends Error {
     this.status = status;
     this.retryable = retryable;
   }
+}
+
+export function isAniListTemporarilyUnavailable(error: unknown): error is AniListError {
+  return (
+    error instanceof AniListError &&
+    (error.code === "upstream_unavailable" || error.code === "rate_limited")
+  );
 }
 
 const TRENDING_QUERY = `
@@ -321,11 +328,15 @@ async function anilistRequest<TData>(
     }
 
     if (payload.errors?.length) {
+      const firstError = payload.errors[0];
+      const status = firstError?.status ?? 502;
+      const message = firstError?.message || "AniList returned an error.";
+
       throw new AniListError(
-        "upstream_unavailable",
-        payload.errors[0]?.message || "AniList returned an error.",
-        502,
-        true,
+        status === 404 ? "not_found" : "upstream_unavailable",
+        message,
+        status,
+        status >= 500 || status === 403,
       );
     }
 
