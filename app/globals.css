@@ -537,6 +537,20 @@ img {
   object-fit: cover;
 }
 
+.catalogImageOverlay {
+  z-index: 1;
+  pointer-events: none;
+}
+
+.catalogImagePending {
+  opacity: 0;
+}
+
+.catalogImageReady {
+  opacity: 1;
+  transition: opacity 180ms ease;
+}
+
 .animeCardPlaceholder {
   display: grid;
   place-items: center;

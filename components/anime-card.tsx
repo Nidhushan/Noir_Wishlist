@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 
 import { AnimeCardMenu } from "@/components/anime-card-menu";
+import { CatalogImage } from "@/components/catalog-image";
 import type { AnimeCard as AnimeCardType } from "@/lib/anilist";
 import {
   formatCountry,
@@ -38,17 +38,12 @@ export function AnimeCard({
 
       <Link className="animeCardLink" href={`/anime/${anime.anilistId}`}>
         <div className="animeCardMedia">
-          {anime.coverImage ? (
-            <Image
-              src={anime.coverImage}
-              alt={`${anime.title} cover art`}
-              fill
-              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
-              className="animeCardImage"
-            />
-          ) : (
-            <div className="animeCardPlaceholder">No cover available</div>
-          )}
+          <CatalogImage
+            src={anime.coverImage}
+            alt={`${anime.title} cover art`}
+            sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+            className="animeCardImage"
+          />
         </div>
 
         <div className="animeCardBody">

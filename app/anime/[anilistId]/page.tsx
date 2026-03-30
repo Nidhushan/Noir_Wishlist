@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { CatalogImage } from "@/components/catalog-image";
 import { SaveAnimeForm } from "@/components/save-anime-form";
 import { StatusPanel } from "@/components/status-panel";
 import { AniListError } from "@/lib/anilist";
@@ -134,6 +135,7 @@ export default async function AnimeDetailPage({
                   priority
                   sizes="100vw"
                   className="detailBanner"
+                  unoptimized
                 />
               ) : null}
               <div className="detailBackdropOverlay" />
@@ -141,17 +143,12 @@ export default async function AnimeDetailPage({
 
             <div className="detailHeroContent">
               <div className="detailPoster">
-                {anime.coverImage ? (
-                  <Image
-                    src={anime.coverImage}
-                    alt={`${anime.title} poster`}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 240px"
-                    className="animeCardImage"
-                  />
-                ) : (
-                  <div className="animeCardPlaceholder">No cover available</div>
-                )}
+                <CatalogImage
+                  src={anime.coverImage}
+                  alt={`${anime.title} poster`}
+                  sizes="(max-width: 768px) 50vw, 240px"
+                  className="animeCardImage"
+                />
               </div>
 
               <div className="detailSummary">

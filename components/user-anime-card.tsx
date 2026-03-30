@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -9,6 +8,7 @@ import {
   type UserAnimeActionState,
   updateUserAnimeStatusAction,
 } from "@/app/actions/user-anime";
+import { CatalogImage } from "@/components/catalog-image";
 import { USER_LIST_STATUSES, type UserAnimeRow } from "@/lib/user-anime.types";
 
 import { ActionFeedback } from "./action-feedback";
@@ -37,17 +37,12 @@ export function UserAnimeCard({ item, returnTo = "/profile" }: UserAnimeCardProp
     <article className="savedAnimeCard">
       <div className="savedAnimeMedia">
         {detailHref ? <Link className="savedAnimeMediaLink" href={detailHref} aria-label={`Open ${item.anime?.title_display || "anime"} detail page`} /> : null}
-        {item.anime?.cover_image ? (
-          <Image
-            src={item.anime.cover_image}
-            alt={`${item.anime.title_display} cover art`}
-            fill
-            sizes="120px"
-            className="animeCardImage"
-          />
-        ) : (
-          <div className="animeCardPlaceholder">No cover available</div>
-        )}
+        <CatalogImage
+          src={item.anime?.cover_image}
+          alt={`${item.anime?.title_display || "Anime"} cover art`}
+          sizes="(max-width: 768px) 50vw, 180px"
+          className="animeCardImage"
+        />
       </div>
 
       <div className="savedAnimeBody">
