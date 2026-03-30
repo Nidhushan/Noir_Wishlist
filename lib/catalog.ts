@@ -1,6 +1,9 @@
+import { unstable_cache } from "next/cache";
+
 import type { AnimeCard, AnimeDetail, PaginatedAnimeCards, SearchSort } from "@/lib/anilist";
 import {
   getAnimeDetail,
+  getNewEpisodesAnime,
   getTrendingAnime,
   isAniListTemporarilyUnavailable,
   searchAnime,
@@ -10,9 +13,23 @@ import type { Database } from "@/lib/supabase/database.types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type AnimeRecord = Database["public"]["Tables"]["anime"]["Row"];
+type CatalogFeedSnapshotRecord = Database["public"]["Tables"]["catalog_feed_snapshots"]["Row"];
+type CatalogFeedSnapshotInsert =
+  Database["public"]["Tables"]["catalog_feed_snapshots"]["Insert"];
+type CatalogFeedItemRecord = Database["public"]["Tables"]["catalog_feed_items"]["Row"];
+type CatalogFeedItemInsert = Database["public"]["Tables"]["catalog_feed_items"]["Insert"];
 type AnimeInsert = Database["public"]["Tables"]["anime"]["Insert"];
 type AnimeUpdate = Database["public"]["Tables"]["anime"]["Update"];
 const CATALOG_PAGE_SIZE = 18;
+const FEED_REVALIDATE_SECONDS = 60 * 5;
+
+export const HOME_FEED_OPTIONS = [
+  { value: "popular", label: "Popular" },
+  { value: "trending", label: "Trending" },
+  { value: "new-episodes", label: "New Episodes" },
+] as const;
+
+export type HomeFeedType = (typeof HOME_FEED_OPTIONS)[number]["value"];
 
 export interface CatalogFeedResult extends PaginatedAnimeCards {
   source: "database" | "anilist";
@@ -23,6 +40,17 @@ export interface CatalogDetailResult {
   anime: AnimeDetail | null;
   source: "database" | "anilist";
   notice: string | null;
+}
+
+function getCatalogSnapshotDate(timeZone = "America/Chicago"): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  return formatter.format(new Date());
 }
 
 export function normalizeTitleKey(value: string | null | undefined): string {
@@ -245,8 +273,267 @@ function getCatalogSearchPattern(query: string): string {
   return `%${query.replace(/[%*,]/g, " ").trim()}%`;
 }
 
-async function getLocalCatalogFeed(page = 1): Promise<PaginatedAnimeCards> {
-  const supabase = await createSupabaseServerClient();
+function buildFeedFromSnapshotAndItems(
+  snapshot: CatalogFeedSnapshotRecord,
+  items: AnimeCard[],
+): CatalogFeedResult {
+  return {
+    items,
+    currentPage: snapshot.page,
+    hasNextPage: snapshot.has_next_page,
+    lastPage: snapshot.last_page,
+    total: snapshot.total,
+    source: "database",
+    notice: null,
+  };
+}
+
+async function getStoredAnimeRecordsByAniListIds(
+  anilistIds: number[],
+): Promise<Map<number, AnimeRecord>> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase || !anilistIds.length) {
+    return new Map();
+  }
+
+  const { data } = await supabase
+    .from("anime")
+    .select("*")
+    .in("anilist_id", anilistIds);
+
+  const rows = (data as AnimeRecord[] | null) ?? [];
+  const rowMap = new Map<number, AnimeRecord>();
+
+  for (const row of rows) {
+    if (row.anilist_id) {
+      rowMap.set(row.anilist_id, row);
+    }
+  }
+
+  return rowMap;
+}
+
+async function getStoredFeedItems(
+  feedType: "trending",
+  snapshotDate: string,
+  page: number,
+): Promise<CatalogFeedItemRecord[]> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return [];
+  }
+
+  const { data } = await supabase
+    .from("catalog_feed_items")
+    .select("*")
+    .eq("feed_type", feedType)
+    .eq("snapshot_date", snapshotDate)
+    .eq("page", page)
+    .order("position", { ascending: true });
+
+  return (data as CatalogFeedItemRecord[] | null) ?? [];
+}
+
+async function getStoredFeedAnimeCards(feedItems: CatalogFeedItemRecord[]): Promise<AnimeCard[]> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase || !feedItems.length) {
+    return [];
+  }
+
+  const animeIds = feedItems.map((item) => item.anime_id);
+  const { data } = await supabase.from("anime").select("*").in("id", animeIds);
+  const animeRows = (data as AnimeRecord[] | null) ?? [];
+  const animeById = new Map<number, AnimeRecord>();
+
+  for (const row of animeRows) {
+    animeById.set(row.id, row);
+  }
+
+  return feedItems
+    .map((item) => animeById.get(item.anime_id))
+    .map((row) => (row ? animeRecordToAnimeCard(row) : null))
+    .filter((item): item is AnimeCard => Boolean(item));
+}
+
+async function getResolvedTrendingFeedUncached(
+  snapshotDate: string,
+  page: number,
+): Promise<CatalogFeedResult | null> {
+  const snapshot = await getFeedSnapshotUncached("trending", snapshotDate, page);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const feedItems = await getStoredFeedItems("trending", snapshotDate, page);
+  const items = await getStoredFeedAnimeCards(feedItems);
+
+  return buildFeedFromSnapshotAndItems(snapshot, items);
+}
+
+const getResolvedTrendingFeedCached = unstable_cache(
+  async (snapshotDate: string, page: number) =>
+    getResolvedTrendingFeedUncached(snapshotDate, page),
+  ["catalog-trending-feed"],
+  { revalidate: FEED_REVALIDATE_SECONDS },
+);
+
+async function getResolvedTrendingFeed(
+  snapshotDate: string,
+  page: number,
+): Promise<CatalogFeedResult | null> {
+  return getResolvedTrendingFeedCached(snapshotDate, page);
+}
+
+async function getResolvedLatestTrendingFeedUncached(
+  page: number,
+): Promise<CatalogFeedResult | null> {
+  const snapshot = await getLatestFeedSnapshotUncached("trending", page);
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const feedItems = await getStoredFeedItems("trending", snapshot.snapshot_date, page);
+  const items = await getStoredFeedAnimeCards(feedItems);
+
+  return buildFeedFromSnapshotAndItems(snapshot, items);
+}
+
+const getResolvedLatestTrendingFeedCached = unstable_cache(
+  async (page: number) => getResolvedLatestTrendingFeedUncached(page),
+  ["catalog-trending-feed-latest"],
+  { revalidate: FEED_REVALIDATE_SECONDS },
+);
+
+async function getResolvedLatestTrendingFeed(
+  page: number,
+): Promise<CatalogFeedResult | null> {
+  return getResolvedLatestTrendingFeedCached(page);
+}
+
+async function getFeedSnapshotUncached(
+  feedType: "trending",
+  snapshotDate: string,
+  page: number,
+): Promise<CatalogFeedSnapshotRecord | null> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("catalog_feed_snapshots")
+    .select("*")
+    .eq("feed_type", feedType)
+    .eq("snapshot_date", snapshotDate)
+    .eq("page", page)
+    .maybeSingle();
+
+  return (data as CatalogFeedSnapshotRecord | null) ?? null;
+}
+
+async function getLatestFeedSnapshotUncached(
+  feedType: "trending",
+  page: number,
+): Promise<CatalogFeedSnapshotRecord | null> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("catalog_feed_snapshots")
+    .select("*")
+    .eq("feed_type", feedType)
+    .eq("page", page)
+    .order("snapshot_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return (data as CatalogFeedSnapshotRecord | null) ?? null;
+}
+
+async function storeFeedSnapshot(
+  feedType: "trending",
+  snapshotDate: string,
+  page: number,
+  feed: PaginatedAnimeCards,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  const payload: CatalogFeedSnapshotInsert = {
+    feed_type: feedType,
+    snapshot_date: snapshotDate,
+    page,
+    items: [],
+    total: feed.total,
+    has_next_page: feed.hasNextPage,
+    last_page: feed.lastPage,
+    source: "anilist",
+  };
+
+  await supabase
+    .from("catalog_feed_snapshots")
+    .upsert(payload, {
+      onConflict: "feed_type,snapshot_date,page",
+    });
+}
+
+async function storeFeedItems(
+  feedType: "trending",
+  snapshotDate: string,
+  page: number,
+  feed: PaginatedAnimeCards,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase || !feed.items.length) {
+    return;
+  }
+
+  const animeByAniListId = await getStoredAnimeRecordsByAniListIds(
+    feed.items.map((item) => item.anilistId),
+  );
+
+  const payload: CatalogFeedItemInsert[] = [];
+
+  feed.items.forEach((item, index) => {
+    const anime = animeByAniListId.get(item.anilistId);
+
+    if (!anime) {
+      return;
+    }
+
+    payload.push({
+      feed_type: feedType,
+      snapshot_date: snapshotDate,
+      page,
+      position: index + 1,
+      anime_id: anime.id,
+    });
+  });
+
+  if (!payload.length) {
+    return;
+  }
+
+  await supabase.from("catalog_feed_items").upsert(payload, {
+    onConflict: "feed_type,snapshot_date,page,position",
+  });
+}
+
+async function getLocalCatalogFeedUncached(page = 1): Promise<PaginatedAnimeCards> {
+  const supabase = createSupabaseAdminClient();
 
   if (!supabase) {
     return {
@@ -282,12 +569,22 @@ async function getLocalCatalogFeed(page = 1): Promise<PaginatedAnimeCards> {
   };
 }
 
+const getLocalCatalogFeedCached = unstable_cache(
+  async (page: number) => getLocalCatalogFeedUncached(page),
+  ["catalog-popular-feed"],
+  { revalidate: FEED_REVALIDATE_SECONDS },
+);
+
+async function getLocalCatalogFeed(page = 1): Promise<PaginatedAnimeCards> {
+  return getLocalCatalogFeedCached(page);
+}
+
 async function searchLocalCatalog(
   query: string,
   page: number,
   sort: SearchSort,
 ): Promise<PaginatedAnimeCards> {
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
   if (!supabase) {
     return {
@@ -356,6 +653,10 @@ async function searchLocalCatalog(
 }
 
 export async function getCatalogHomepageFeed(page = 1): Promise<CatalogFeedResult> {
+  return getHomepageFeed("popular", page);
+}
+
+async function getPopularHomepageFeed(page = 1): Promise<CatalogFeedResult> {
   const localFeed = await getLocalCatalogFeed(page);
 
   if (localFeed.items.length) {
@@ -386,6 +687,81 @@ export async function getCatalogHomepageFeed(page = 1): Promise<CatalogFeedResul
     }
 
     throw error;
+  }
+}
+
+async function getTrendingHomepageFeed(page = 1): Promise<CatalogFeedResult> {
+  const snapshotDate = getCatalogSnapshotDate();
+  const todaysFeed = await getResolvedTrendingFeed(snapshotDate, page);
+
+  if (todaysFeed) {
+    return todaysFeed;
+  }
+
+  try {
+    const liveFeed = await getTrendingAnime(page);
+    await upsertAnimeBasicRecords(liveFeed.items);
+    await storeFeedSnapshot("trending", snapshotDate, page, liveFeed);
+    await storeFeedItems("trending", snapshotDate, page, liveFeed);
+
+    return {
+      ...liveFeed,
+      source: "anilist",
+      notice: null,
+    };
+  } catch (error) {
+    const latestFeed = await getResolvedLatestTrendingFeed(page);
+
+    if (latestFeed && isAniListTemporarilyUnavailable(error)) {
+      return latestFeed;
+    }
+
+    throw error;
+  }
+}
+
+async function getNewEpisodesHomepageFeed(page = 1): Promise<CatalogFeedResult> {
+  try {
+    const liveFeed = await getNewEpisodesAnime(page);
+    await upsertAnimeBasicRecords(liveFeed.items);
+
+    return {
+      ...liveFeed,
+      source: "anilist",
+      notice:
+        "New Episodes uses live AniList schedule data, so this feed refreshes more frequently than the rest of the homepage.",
+    };
+  } catch (error) {
+    if (isAniListTemporarilyUnavailable(error)) {
+      const localFeed = await getLocalCatalogFeed(1);
+
+      return {
+        ...localFeed,
+        currentPage: 1,
+        lastPage: 1,
+        hasNextPage: false,
+        source: "database",
+        notice:
+          "AniList is temporarily unavailable. Noir is showing popular catalog titles until live episode data comes back.",
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function getHomepageFeed(
+  feedType: HomeFeedType,
+  page = 1,
+): Promise<CatalogFeedResult> {
+  switch (feedType) {
+    case "trending":
+      return getTrendingHomepageFeed(page);
+    case "new-episodes":
+      return getNewEpisodesHomepageFeed(page);
+    case "popular":
+    default:
+      return getPopularHomepageFeed(page);
   }
 }
 

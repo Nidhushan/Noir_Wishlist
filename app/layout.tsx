@@ -6,8 +6,6 @@ import { getSiteUrl } from "@/lib/env";
 
 import "./globals.css";
 
-export const dynamic = "force-dynamic";
-
 const metadataBase = new URL(getSiteUrl());
 
 export const metadata: Metadata = {
@@ -17,12 +15,12 @@ export const metadata: Metadata = {
     template: "%s | Noir",
   },
   description:
-    "Discover trending anime, search the AniList catalog, and explore detailed anime metadata.",
+    "Discover anime, build your watchlist, and keep your library organized with Noir.",
   applicationName: "Noir",
   openGraph: {
     title: "Noir",
     description:
-      "Discover trending anime, search the AniList catalog, and explore detailed anime metadata.",
+      "Discover anime, build your watchlist, and keep your library organized with Noir.",
     siteName: "Noir",
     type: "website",
   },
@@ -30,11 +28,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Noir",
     description:
-      "Discover trending anime, search the AniList catalog, and explore detailed anime metadata.",
+      "Discover anime, build your watchlist, and keep your library organized with Noir.",
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -48,7 +46,7 @@ export default async function RootLayout({
               <Link className="brand" href="/">
                 Noir
               </Link>
-              <p className="topbarCopy">AniList-powered anime discovery, rendered server-side.</p>
+              <p className="topbarCopy">Your anime wishlist, organized.</p>
             </div>
             <TopbarAuth />
           </header>

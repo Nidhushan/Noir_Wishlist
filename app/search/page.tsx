@@ -39,13 +39,13 @@ export async function generateMetadata({
   if (!query) {
     return {
       title: "Search",
-      description: "Search anime titles sourced directly from AniList.",
+      description: "Search anime titles in Noir.",
     };
   }
 
   return {
     title: `Search: ${query}`,
-    description: `Search results for ${query} sourced directly from AniList.`,
+    description: `Search results for ${query} in Noir.`,
   };
 }
 
@@ -69,7 +69,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <section className="hero compactHero">
           <div className="heroCopy">
             <p className="eyebrow">Search</p>
-            <h1>Find anime titles from AniList.</h1>
+            <h1>Find anime titles.</h1>
             <p className="heroText">
               Enter at least two characters to search by English, Romaji, or native title.
             </p>
@@ -93,7 +93,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
             <p className="eyebrow">Search</p>
             <h1>Search terms need at least two characters.</h1>
             <p className="heroText">
-              Shorter queries are blocked before hitting AniList to avoid noisy requests.
+              Use at least two characters, then try again.
             </p>
           </div>
           <SearchForm initialQuery={query} initialSort={currentSort} compact />
@@ -134,9 +134,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           <p className="heroText">
             {errorMessage
               ? "Noir could not complete the search request."
-              : results?.source === "database"
-                ? `Noir returned ${results?.total.toLocaleString()} local catalog matches, sorted by ${currentSortLabel.toLowerCase()}.`
-                : `Noir fetched ${results?.total.toLocaleString()} live AniList matches because the local catalog did not have enough results.`}
+              : `${results?.total.toLocaleString()} matches, sorted by ${currentSortLabel.toLowerCase()}.`}
           </p>
         </div>
         <SearchForm initialQuery={query} initialSort={currentSort} compact />
@@ -146,10 +144,6 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         <StatusPanel tone="error" title="Search failed" message={errorMessage} />
       ) : (
         <>
-          {results?.notice ? (
-            <StatusPanel title="Catalog source" message={results.notice} />
-          ) : null}
-
           <AnimeGrid
             items={results?.items ?? []}
             emptyTitle="No anime matched that query"

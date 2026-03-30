@@ -222,6 +222,78 @@ export interface Database {
         };
         Relationships: [];
       };
+      catalog_feed_snapshots: {
+        Row: {
+          id: number;
+          feed_type: string;
+          snapshot_date: string;
+          page: number;
+          items: Json;
+          total: number;
+          has_next_page: boolean;
+          last_page: number;
+          source: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          feed_type: string;
+          snapshot_date: string;
+          page?: number;
+          items?: Json;
+          total?: number;
+          has_next_page?: boolean;
+          last_page?: number;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          feed_type?: string;
+          snapshot_date?: string;
+          page?: number;
+          items?: Json;
+          total?: number;
+          has_next_page?: boolean;
+          last_page?: number;
+          source?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      catalog_feed_items: {
+        Row: {
+          id: number;
+          feed_type: string;
+          snapshot_date: string;
+          page: number;
+          position: number;
+          anime_id: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          feed_type: string;
+          snapshot_date: string;
+          page?: number;
+          position: number;
+          anime_id: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          feed_type?: string;
+          snapshot_date?: string;
+          page?: number;
+          position?: number;
+          anime_id?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

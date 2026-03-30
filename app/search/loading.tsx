@@ -7,9 +7,7 @@ export default function LoadingSearch() {
         <div className="heroCopy">
           <p className="eyebrow">Search</p>
           <h1>Loading search results.</h1>
-          <p className="heroText">
-            Fetching AniList search results and preparing the result grid.
-          </p>
+          <p className="heroText">Preparing the result grid.</p>
         </div>
       </section>
       <SkeletonGrid />

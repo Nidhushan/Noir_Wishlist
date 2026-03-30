@@ -55,13 +55,13 @@ export async function generateMetadata({
       title: anime.title,
       description:
         anime.description ||
-        `${anime.title} on Noir, sourced directly from AniList.`,
+        `${anime.title} on Noir.`,
       openGraph: previewImage
         ? {
             title: anime.title,
             description:
               anime.description ||
-              `${anime.title} on Noir, sourced directly from AniList.`,
+              `${anime.title} on Noir.`,
             images: [previewImage],
           }
         : undefined,
@@ -97,7 +97,7 @@ export default async function AnimeDetailPage({
     errorMessage =
       error instanceof AniListError
         ? error.message
-        : "AniList could not load the anime detail page.";
+        : "Noir could not load this anime page.";
   }
 
   const anime = detailResult?.anime ?? null;
@@ -117,14 +117,10 @@ export default async function AnimeDetailPage({
         <StatusPanel
           tone="error"
           title="Anime detail unavailable"
-          message={errorMessage || "AniList could not load the anime detail page."}
+          message={errorMessage || "Noir could not load this anime page."}
         />
       ) : (
         <>
-          {detailResult?.notice ? (
-            <StatusPanel title="Catalog source" message={detailResult.notice} />
-          ) : null}
-
           <section className="detailHero">
             <div className="detailBackdrop">
               {anime.bannerImage ? (
@@ -152,7 +148,7 @@ export default async function AnimeDetailPage({
               </div>
 
               <div className="detailSummary">
-                <p className="eyebrow">AniList detail view</p>
+                <p className="eyebrow">Anime details</p>
                 <h1>{anime.title}</h1>
                 <p className="detailMeta">
                   {anime.format || "Format unknown"} · {formatStatus(anime.status)} ·{" "}
@@ -167,7 +163,7 @@ export default async function AnimeDetailPage({
 
                 <p className="detailDescription">
                   {anime.description ||
-                    "AniList does not currently expose a description for this anime."}
+                    "No description is available for this anime yet."}
                 </p>
 
                 <div className="buttonRow">
@@ -181,16 +177,6 @@ export default async function AnimeDetailPage({
                     listStatus={savedState?.listStatus ?? "wishlist"}
                     returnTo={`/anime/${anime.anilistId}`}
                   />
-                  {anime.siteUrl ? (
-                    <a
-                      className="paginationButton"
-                      href={anime.siteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      View on AniList
-                    </a>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -229,7 +215,7 @@ export default async function AnimeDetailPage({
                 </div>
               ) : (
                 <p className="detailEmpty">
-                  AniList does not currently list genres for this anime.
+                  Genres are not available for this anime yet.
                 </p>
               )}
             </div>

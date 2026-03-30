@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 const ANILIST_API_URL = "https://graphql.anilist.co";
 
 const TRENDING_REVALIDATE_SECONDS = 60 * 60 * 6;
+const NEW_EPISODES_REVALIDATE_SECONDS = 60 * 10;
 const SEARCH_REVALIDATE_SECONDS = 60 * 5;
 const DETAIL_REVALIDATE_SECONDS = 60 * 60 * 24;
 
@@ -227,6 +228,42 @@ const DETAIL_QUERY = `
   }
 `;
 
+const NEW_EPISODES_QUERY = `
+  query NewEpisodesAnime($page: Int!, $perPage: Int!) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        currentPage
+        hasNextPage
+        lastPage
+        total
+      }
+      airingSchedules(notYetAired: false, sort: [TIME_DESC]) {
+        media {
+          id
+          title {
+            romaji
+            english
+            native
+          }
+          coverImage {
+            large
+            extraLarge
+          }
+          bannerImage
+          format
+          status
+          episodes
+          countryOfOrigin
+          season
+          seasonYear
+          averageScore
+          popularity
+        }
+      }
+    }
+  }
+`;
+
 function decodeHtmlEntities(value: string): string {
   return value
     .replace(/&quot;/g, '"')
@@ -396,6 +433,47 @@ const getTrendingAnimeCached = unstable_cache(
   { revalidate: TRENDING_REVALIDATE_SECONDS },
 );
 
+const getNewEpisodesAnimeCached = unstable_cache(
+  async (batch: number) => {
+    const pageSize = Math.max(12, batch * 12);
+    const data = await anilistRequest<{
+      Page: {
+        pageInfo: AniListPageInfo;
+        airingSchedules: Array<{
+          media: AniListMedia | null;
+        }>;
+      };
+    }>(NEW_EPISODES_QUERY, {
+      page: 1,
+      perPage: pageSize,
+    });
+
+    const seen = new Set<number>();
+    const items = data.Page.airingSchedules
+      .map((entry) => entry.media)
+      .filter((media): media is AniListMedia => Boolean(media))
+      .filter((media) => {
+        if (seen.has(media.id)) {
+          return false;
+        }
+
+        seen.add(media.id);
+        return true;
+      })
+      .map(normalizeCard);
+
+    return {
+      items,
+      currentPage: batch,
+      hasNextPage: data.Page.pageInfo.total > items.length,
+      lastPage: Math.max(1, Math.ceil(data.Page.pageInfo.total / 12)),
+      total: data.Page.pageInfo.total,
+    } satisfies PaginatedAnimeCards;
+  },
+  ["anilist-new-episodes"],
+  { revalidate: NEW_EPISODES_REVALIDATE_SECONDS },
+);
+
 const searchAnimeCached = unstable_cache(
   async (query: string, page: number, sort: SearchSort) => {
     const data = await anilistRequest<{
@@ -439,6 +517,10 @@ const getAnimeDetailCached = unstable_cache(
 
 export async function getTrendingAnime(page = 1): Promise<PaginatedAnimeCards> {
   return getTrendingAnimeCached(page);
+}
+
+export async function getNewEpisodesAnime(batch = 1): Promise<PaginatedAnimeCards> {
+  return getNewEpisodesAnimeCached(batch);
 }
 
 export async function searchAnime(

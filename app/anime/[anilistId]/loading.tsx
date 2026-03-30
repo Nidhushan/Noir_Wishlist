@@ -5,7 +5,7 @@ export default function LoadingAnimeDetail() {
         <div className="detailHeroContent">
           <div className="detailPoster skeletonMedia" />
           <div className="detailSummary">
-            <p className="eyebrow">AniList detail view</p>
+            <p className="eyebrow">Anime details</p>
             <div className="skeletonLine short" />
             <div className="skeletonLine" />
             <div className="skeletonLine medium" />

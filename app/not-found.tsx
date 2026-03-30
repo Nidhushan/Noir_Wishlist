@@ -7,8 +7,7 @@ export default function NotFound() {
         <p className="eyebrow">404</p>
         <h1>That anime page does not exist.</h1>
         <p>
-          The AniList identifier may be invalid, or the title is not currently
-          available through the public API.
+          The page could not be found, or this title is not available right now.
         </p>
         <div className="buttonRow">
           <Link className="paginationButton" href="/">
