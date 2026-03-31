@@ -4,6 +4,8 @@ import type { AnimeCard, AnimeDetail, PaginatedAnimeCards, SearchSort } from "@/
 import {
   getAnimeDetail,
   getNewEpisodesAnime,
+  getPopularAnime,
+  getRecentlyCompletedAnime,
   getTrendingAnime,
   isAniListTemporarilyUnavailable,
   searchAnime,
@@ -18,14 +20,24 @@ type CatalogFeedSnapshotInsert =
   Database["public"]["Tables"]["catalog_feed_snapshots"]["Insert"];
 type CatalogFeedItemRecord = Database["public"]["Tables"]["catalog_feed_items"]["Row"];
 type CatalogFeedItemInsert = Database["public"]["Tables"]["catalog_feed_items"]["Insert"];
+type FeedRefreshStateRecord = Database["public"]["Tables"]["feed_refresh_state"]["Row"];
+type FeedRefreshStateUpdate = Database["public"]["Tables"]["feed_refresh_state"]["Update"];
 type AnimeInsert = Database["public"]["Tables"]["anime"]["Insert"];
 type AnimeUpdate = Database["public"]["Tables"]["anime"]["Update"];
 const CATALOG_PAGE_SIZE = 18;
 const FEED_REVALIDATE_SECONDS = 60 * 5;
+const FEED_REFRESH_INTERVALS_MS = {
+  popular: 1000 * 60 * 60 * 24 * 7,
+  trending: 1000 * 60 * 60 * 24,
+  "recently-completed": 1000 * 60 * 60 * 24,
+  "new-episodes": 1000 * 60 * 10,
+} as const;
+const FEED_FAILURE_COOLDOWN_MS = 1000 * 60 * 10;
 
 export const HOME_FEED_OPTIONS = [
   { value: "popular", label: "Popular" },
   { value: "trending", label: "Trending" },
+  { value: "recently-completed", label: "Recently Completed" },
   { value: "new-episodes", label: "New Episodes" },
 ] as const;
 
@@ -40,6 +52,10 @@ export interface CatalogDetailResult {
   anime: AnimeDetail | null;
   source: "database" | "anilist";
   notice: string | null;
+}
+
+function getFeedRefreshIntervalMs(feedType: HomeFeedType): number {
+  return FEED_REFRESH_INTERVALS_MS[feedType];
 }
 
 function getCatalogSnapshotDate(timeZone = "America/Chicago"): string {
@@ -315,7 +331,7 @@ async function getStoredAnimeRecordsByAniListIds(
 }
 
 async function getStoredFeedItems(
-  feedType: "trending",
+  feedType: HomeFeedType,
   snapshotDate: string,
   page: number,
 ): Promise<CatalogFeedItemRecord[]> {
@@ -358,65 +374,41 @@ async function getStoredFeedAnimeCards(feedItems: CatalogFeedItemRecord[]): Prom
     .filter((item): item is AnimeCard => Boolean(item));
 }
 
-async function getResolvedTrendingFeedUncached(
+async function getResolvedFeed(
+  feedType: HomeFeedType,
   snapshotDate: string,
   page: number,
 ): Promise<CatalogFeedResult | null> {
-  const snapshot = await getFeedSnapshotUncached("trending", snapshotDate, page);
+  const snapshot = await getFeedSnapshot(feedType, snapshotDate, page);
 
   if (!snapshot) {
     return null;
   }
 
-  const feedItems = await getStoredFeedItems("trending", snapshotDate, page);
+  const feedItems = await getStoredFeedItems(feedType, snapshotDate, page);
   const items = await getStoredFeedAnimeCards(feedItems);
 
   return buildFeedFromSnapshotAndItems(snapshot, items);
 }
 
-const getResolvedTrendingFeedCached = unstable_cache(
-  async (snapshotDate: string, page: number) =>
-    getResolvedTrendingFeedUncached(snapshotDate, page),
-  ["catalog-trending-feed"],
-  { revalidate: FEED_REVALIDATE_SECONDS },
-);
-
-async function getResolvedTrendingFeed(
-  snapshotDate: string,
+async function getResolvedLatestFeed(
+  feedType: HomeFeedType,
   page: number,
 ): Promise<CatalogFeedResult | null> {
-  return getResolvedTrendingFeedCached(snapshotDate, page);
-}
-
-async function getResolvedLatestTrendingFeedUncached(
-  page: number,
-): Promise<CatalogFeedResult | null> {
-  const snapshot = await getLatestFeedSnapshotUncached("trending", page);
+  const snapshot = await getLatestFeedSnapshot(feedType, page);
 
   if (!snapshot) {
     return null;
   }
 
-  const feedItems = await getStoredFeedItems("trending", snapshot.snapshot_date, page);
+  const feedItems = await getStoredFeedItems(feedType, snapshot.snapshot_date, page);
   const items = await getStoredFeedAnimeCards(feedItems);
 
   return buildFeedFromSnapshotAndItems(snapshot, items);
 }
 
-const getResolvedLatestTrendingFeedCached = unstable_cache(
-  async (page: number) => getResolvedLatestTrendingFeedUncached(page),
-  ["catalog-trending-feed-latest"],
-  { revalidate: FEED_REVALIDATE_SECONDS },
-);
-
-async function getResolvedLatestTrendingFeed(
-  page: number,
-): Promise<CatalogFeedResult | null> {
-  return getResolvedLatestTrendingFeedCached(page);
-}
-
-async function getFeedSnapshotUncached(
-  feedType: "trending",
+async function getFeedSnapshot(
+  feedType: HomeFeedType,
   snapshotDate: string,
   page: number,
 ): Promise<CatalogFeedSnapshotRecord | null> {
@@ -437,8 +429,8 @@ async function getFeedSnapshotUncached(
   return (data as CatalogFeedSnapshotRecord | null) ?? null;
 }
 
-async function getLatestFeedSnapshotUncached(
-  feedType: "trending",
+async function getLatestFeedSnapshot(
+  feedType: HomeFeedType,
   page: number,
 ): Promise<CatalogFeedSnapshotRecord | null> {
   const supabase = createSupabaseAdminClient();
@@ -460,7 +452,7 @@ async function getLatestFeedSnapshotUncached(
 }
 
 async function storeFeedSnapshot(
-  feedType: "trending",
+  feedType: HomeFeedType,
   snapshotDate: string,
   page: number,
   feed: PaginatedAnimeCards,
@@ -490,14 +482,25 @@ async function storeFeedSnapshot(
 }
 
 async function storeFeedItems(
-  feedType: "trending",
+  feedType: HomeFeedType,
   snapshotDate: string,
   page: number,
   feed: PaginatedAnimeCards,
 ): Promise<void> {
   const supabase = createSupabaseAdminClient();
 
-  if (!supabase || !feed.items.length) {
+  if (!supabase) {
+    return;
+  }
+
+  await supabase
+    .from("catalog_feed_items")
+    .delete()
+    .eq("feed_type", feedType)
+    .eq("snapshot_date", snapshotDate)
+    .eq("page", page);
+
+  if (!feed.items.length) {
     return;
   }
 
@@ -527,9 +530,7 @@ async function storeFeedItems(
     return;
   }
 
-  await supabase.from("catalog_feed_items").upsert(payload, {
-    onConflict: "feed_type,snapshot_date,page,position",
-  });
+  await supabase.from("catalog_feed_items").insert(payload);
 }
 
 async function getLocalCatalogFeedUncached(page = 1): Promise<PaginatedAnimeCards> {
@@ -577,6 +578,145 @@ const getLocalCatalogFeedCached = unstable_cache(
 
 async function getLocalCatalogFeed(page = 1): Promise<PaginatedAnimeCards> {
   return getLocalCatalogFeedCached(page);
+}
+
+async function getLocalCatalogFallback(page = 1): Promise<CatalogFeedResult> {
+  const localFeed = await getLocalCatalogFeed(page);
+
+  return {
+    ...localFeed,
+    source: "database",
+    notice: null,
+  };
+}
+
+function getEmptyFeedResult(page = 1): CatalogFeedResult {
+  return {
+    items: [],
+    currentPage: page,
+    hasNextPage: false,
+    lastPage: 1,
+    total: 0,
+    source: "database",
+    notice: null,
+  };
+}
+
+async function getFeedRefreshState(
+  feedType: HomeFeedType,
+): Promise<FeedRefreshStateRecord | null> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return null;
+  }
+
+  const { data } = await supabase
+    .from("feed_refresh_state")
+    .select("*")
+    .eq("feed_type", feedType)
+    .maybeSingle();
+
+  return (data as FeedRefreshStateRecord | null) ?? null;
+}
+
+async function updateFeedRefreshState(
+  feedType: HomeFeedType,
+  payload: FeedRefreshStateUpdate,
+): Promise<void> {
+  const supabase = createSupabaseAdminClient();
+
+  if (!supabase) {
+    return;
+  }
+
+  await supabase.from("feed_refresh_state").upsert(
+    {
+      feed_type: feedType,
+      ...payload,
+    },
+    { onConflict: "feed_type" },
+  );
+}
+
+function isDateWithinInterval(value: string | null, intervalMs: number): boolean {
+  if (!value) {
+    return false;
+  }
+
+  const time = new Date(value).getTime();
+
+  return !Number.isNaN(time) && Date.now() - time < intervalMs;
+}
+
+function canAttemptFeedRefresh(state: FeedRefreshStateRecord | null): boolean {
+  if (!state?.next_allowed_at) {
+    return true;
+  }
+
+  const nextAllowedTime = new Date(state.next_allowed_at).getTime();
+  return Number.isNaN(nextAllowedTime) || nextAllowedTime <= Date.now();
+}
+
+async function markFeedRefreshStarted(feedType: HomeFeedType): Promise<void> {
+  await updateFeedRefreshState(feedType, {
+    last_attempted_at: new Date().toISOString(),
+    status: "refreshing",
+    error_message: null,
+  });
+}
+
+async function markFeedRefreshSuccess(feedType: HomeFeedType): Promise<void> {
+  const now = new Date().toISOString();
+
+  await updateFeedRefreshState(feedType, {
+    last_attempted_at: now,
+    last_succeeded_at: now,
+    status: "success",
+    error_message: null,
+    next_allowed_at: null,
+  });
+}
+
+async function markFeedRefreshFailure(feedType: HomeFeedType, error: unknown): Promise<void> {
+  const now = new Date();
+
+  await updateFeedRefreshState(feedType, {
+    last_attempted_at: now.toISOString(),
+    status: "failed",
+    error_message: error instanceof Error ? error.message : "Feed refresh failed.",
+    next_allowed_at: new Date(now.getTime() + FEED_FAILURE_COOLDOWN_MS).toISOString(),
+  });
+}
+
+async function refreshStoredFeed(
+  feedType: HomeFeedType,
+  page: number,
+): Promise<CatalogFeedResult | null> {
+  const snapshotDate = getCatalogSnapshotDate();
+
+  await markFeedRefreshStarted(feedType);
+
+  try {
+    const liveFeed =
+      feedType === "popular"
+        ? await getPopularAnime(page)
+        : feedType === "trending"
+          ? await getTrendingAnime(page)
+          : feedType === "recently-completed"
+            ? await getRecentlyCompletedAnime(page)
+            : await getNewEpisodesAnime(page);
+
+    await upsertAnimeBasicRecords(liveFeed.items);
+    await storeFeedSnapshot(feedType, snapshotDate, page, liveFeed);
+    await storeFeedItems(feedType, snapshotDate, page, liveFeed);
+    await markFeedRefreshSuccess(feedType);
+
+    return getResolvedFeed(feedType, snapshotDate, page);
+  } catch (error) {
+    await markFeedRefreshFailure(feedType, error);
+    throw error;
+  }
 }
 
 async function searchLocalCatalog(
@@ -656,98 +796,73 @@ export async function getCatalogHomepageFeed(page = 1): Promise<CatalogFeedResul
   return getHomepageFeed("popular", page);
 }
 
-async function getPopularHomepageFeed(page = 1): Promise<CatalogFeedResult> {
-  const localFeed = await getLocalCatalogFeed(page);
+async function getSnapshotBackedHomepageFeed(
+  feedType: HomeFeedType,
+  page = 1,
+): Promise<CatalogFeedResult> {
+  const snapshotDate = getCatalogSnapshotDate();
+  const refreshState = await getFeedRefreshState(feedType);
+  const latestFeed = await getResolvedLatestFeed(feedType, page);
+  const todaysFeed = await getResolvedFeed(feedType, snapshotDate, page);
+  const isFresh = isDateWithinInterval(
+    refreshState?.last_succeeded_at ?? null,
+    getFeedRefreshIntervalMs(feedType),
+  );
 
-  if (localFeed.items.length) {
-    return {
-      ...localFeed,
-      source: "database",
-      notice: null,
-    };
+  if (feedType === "trending" || feedType === "recently-completed") {
+    if (todaysFeed) {
+      return todaysFeed;
+    }
+  } else if (latestFeed && isFresh) {
+    return latestFeed;
+  }
+
+  const fallbackFeed =
+    feedType === "popular" ? await getLocalCatalogFallback(page) : getEmptyFeedResult(page);
+
+  if (!canAttemptFeedRefresh(refreshState)) {
+    return latestFeed ?? fallbackFeed;
   }
 
   try {
-    const liveFeed = await getTrendingAnime(page);
-    await upsertAnimeBasicRecords(liveFeed.items);
+    const refreshedFeed = await refreshStoredFeed(feedType, page);
 
-    return {
-      ...liveFeed,
-      source: "anilist",
-      notice: "Live AniList data was used because the local feed did not have enough anime yet.",
-    };
+    if (refreshedFeed) {
+      return refreshedFeed;
+    }
+
+    return latestFeed ?? fallbackFeed;
   } catch (error) {
     if (isAniListTemporarilyUnavailable(error)) {
-      return {
-        ...localFeed,
-        source: "database",
-        notice:
-          "AniList is temporarily unavailable. Noir is showing the local catalog feed instead.",
-      };
+      return latestFeed ?? fallbackFeed;
     }
 
     throw error;
   }
+}
+
+async function getPopularHomepageFeed(page = 1): Promise<CatalogFeedResult> {
+  const feed = await getSnapshotBackedHomepageFeed("popular", page);
+
+  if (feed.items.length) {
+    return feed;
+  }
+
+  return getLocalCatalogFallback(page);
 }
 
 async function getTrendingHomepageFeed(page = 1): Promise<CatalogFeedResult> {
-  const snapshotDate = getCatalogSnapshotDate();
-  const todaysFeed = await getResolvedTrendingFeed(snapshotDate, page);
+  return getSnapshotBackedHomepageFeed("trending", page);
+}
 
-  if (todaysFeed) {
-    return todaysFeed;
-  }
-
-  try {
-    const liveFeed = await getTrendingAnime(page);
-    await upsertAnimeBasicRecords(liveFeed.items);
-    await storeFeedSnapshot("trending", snapshotDate, page, liveFeed);
-    await storeFeedItems("trending", snapshotDate, page, liveFeed);
-
-    return {
-      ...liveFeed,
-      source: "anilist",
-      notice: null,
-    };
-  } catch (error) {
-    const latestFeed = await getResolvedLatestTrendingFeed(page);
-
-    if (latestFeed && isAniListTemporarilyUnavailable(error)) {
-      return latestFeed;
-    }
-
-    throw error;
-  }
+async function getRecentlyCompletedHomepageFeed(
+  page = 1,
+): Promise<CatalogFeedResult> {
+  return getSnapshotBackedHomepageFeed("recently-completed", page);
 }
 
 async function getNewEpisodesHomepageFeed(page = 1): Promise<CatalogFeedResult> {
-  try {
-    const liveFeed = await getNewEpisodesAnime(page);
-    await upsertAnimeBasicRecords(liveFeed.items);
-
-    return {
-      ...liveFeed,
-      source: "anilist",
-      notice:
-        "New Episodes uses live AniList schedule data, so this feed refreshes more frequently than the rest of the homepage.",
-    };
-  } catch (error) {
-    if (isAniListTemporarilyUnavailable(error)) {
-      const localFeed = await getLocalCatalogFeed(1);
-
-      return {
-        ...localFeed,
-        currentPage: 1,
-        lastPage: 1,
-        hasNextPage: false,
-        source: "database",
-        notice:
-          "AniList is temporarily unavailable. Noir is showing popular catalog titles until live episode data comes back.",
-      };
-    }
-
-    throw error;
-  }
+  return getSnapshotBackedHomepageFeed("new-episodes", page);
 }
 
 export async function getHomepageFeed(
@@ -757,6 +872,8 @@ export async function getHomepageFeed(
   switch (feedType) {
     case "trending":
       return getTrendingHomepageFeed(page);
+    case "recently-completed":
+      return getRecentlyCompletedHomepageFeed(page);
     case "new-episodes":
       return getNewEpisodesHomepageFeed(page);
     case "popular":

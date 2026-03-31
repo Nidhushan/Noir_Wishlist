@@ -11,6 +11,16 @@ import {
 export { USER_LIST_STATUSES };
 export type { UserAnimeRow, UserAnimeState, UserListStatus };
 
+const USER_ANIME_PAGE_SIZE = 20;
+
+export interface UserAnimeSectionResult {
+  items: UserAnimeRow[];
+  currentPage: number;
+  hasNextPage: boolean;
+  lastPage: number;
+  total: number;
+}
+
 export async function upsertUserAnimeEntry(input: {
   anilistId: number;
   listStatus: UserListStatus;
@@ -197,7 +207,10 @@ export async function getCurrentUserAnimeByStatus() {
   }));
 }
 
-export async function getCurrentUserAnimeSection(status: UserListStatus) {
+export async function getCurrentUserAnimeSection(
+  status: UserListStatus,
+  page = 1,
+): Promise<UserAnimeSectionResult | null> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
@@ -212,18 +225,25 @@ export async function getCurrentUserAnimeSection(status: UserListStatus) {
     return null;
   }
 
-  const { data, error } = await supabase
+  const currentPage = Number.isInteger(page) && page > 0 ? page : 1;
+  const from = (currentPage - 1) * USER_ANIME_PAGE_SIZE;
+  const to = from + USER_ANIME_PAGE_SIZE - 1;
+  const { data, error, count } = await supabase
     .from("user_anime")
-    .select("id, user_id, anime_id, list_status, progress, score, notes, priority, added_at, updated_at")
+    .select("id, user_id, anime_id, list_status, progress, score, notes, priority, added_at, updated_at", {
+      count: "exact",
+    })
     .eq("user_id", user.id)
     .eq("list_status", status)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .range(from, to);
 
   if (error) {
     return null;
   }
 
   const rows = (data as UserAnimeRow[]) ?? [];
+  const total = count ?? rows.length;
   const animeIds = Array.from(new Set(rows.map((row) => row.anime_id)));
 
   const { data: animeRows } = animeIds.length
@@ -234,10 +254,18 @@ export async function getCurrentUserAnimeSection(status: UserListStatus) {
     ((animeRows as AnimeRecord[] | null) ?? []).map((row) => [row.id, row]),
   );
 
-  return rows.map((row) => ({
+  const items = rows.map((row) => ({
     ...row,
     anime: animeById.get(row.anime_id) ?? null,
   }));
+
+  return {
+    items,
+    currentPage,
+    hasNextPage: to + 1 < total,
+    lastPage: Math.max(1, Math.ceil(total / USER_ANIME_PAGE_SIZE)),
+    total,
+  };
 }
 
 export async function getCurrentUserAnimeMapByAniListIds(

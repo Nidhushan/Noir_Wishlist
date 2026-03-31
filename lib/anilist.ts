@@ -3,6 +3,8 @@ import { unstable_cache } from "next/cache";
 const ANILIST_API_URL = "https://graphql.anilist.co";
 
 const TRENDING_REVALIDATE_SECONDS = 60 * 60 * 6;
+const POPULAR_REVALIDATE_SECONDS = 60 * 60 * 24;
+const RECENTLY_COMPLETED_REVALIDATE_SECONDS = 60 * 60 * 24;
 const NEW_EPISODES_REVALIDATE_SECONDS = 60 * 10;
 const SEARCH_REVALIDATE_SECONDS = 60 * 5;
 const DETAIL_REVALIDATE_SECONDS = 60 * 60 * 24;
@@ -160,6 +162,40 @@ const TRENDING_QUERY = `
   }
 `;
 
+const POPULAR_QUERY = `
+  query PopularAnime($page: Int!, $perPage: Int!) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        currentPage
+        hasNextPage
+        lastPage
+        total
+      }
+      media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC, SCORE_DESC]) {
+        id
+        title {
+          romaji
+          english
+          native
+        }
+        coverImage {
+          large
+          extraLarge
+        }
+        bannerImage
+        format
+        status
+        episodes
+        countryOfOrigin
+        season
+        seasonYear
+        averageScore
+        popularity
+      }
+    }
+  }
+`;
+
 const SEARCH_QUERY = `
   query SearchAnime($search: String!, $page: Int!, $perPage: Int!, $sort: [MediaSort]) {
     Page(page: $page, perPage: $perPage) {
@@ -259,6 +295,45 @@ const NEW_EPISODES_QUERY = `
           averageScore
           popularity
         }
+      }
+    }
+  }
+`;
+
+const RECENTLY_COMPLETED_QUERY = `
+  query RecentlyCompletedAnime($page: Int!, $perPage: Int!) {
+    Page(page: $page, perPage: $perPage) {
+      pageInfo {
+        currentPage
+        hasNextPage
+        lastPage
+        total
+      }
+      media(
+        type: ANIME
+        isAdult: false
+        status: FINISHED
+        sort: [END_DATE_DESC, POPULARITY_DESC]
+      ) {
+        id
+        title {
+          romaji
+          english
+          native
+        }
+        coverImage {
+          large
+          extraLarge
+        }
+        bannerImage
+        format
+        status
+        episodes
+        countryOfOrigin
+        season
+        seasonYear
+        averageScore
+        popularity
       }
     }
   }
@@ -433,6 +508,27 @@ const getTrendingAnimeCached = unstable_cache(
   { revalidate: TRENDING_REVALIDATE_SECONDS },
 );
 
+const getPopularAnimeCached = unstable_cache(
+  async (page: number) => {
+    const data = await anilistRequest<{
+      Page: { media: AniListMedia[]; pageInfo: AniListPageInfo };
+    }>(POPULAR_QUERY, {
+      page,
+      perPage: 18,
+    });
+
+    return {
+      items: data.Page.media.map(normalizeCard),
+      currentPage: data.Page.pageInfo.currentPage,
+      hasNextPage: data.Page.pageInfo.hasNextPage,
+      lastPage: data.Page.pageInfo.lastPage,
+      total: data.Page.pageInfo.total,
+    } satisfies PaginatedAnimeCards;
+  },
+  ["anilist-popular"],
+  { revalidate: POPULAR_REVALIDATE_SECONDS },
+);
+
 const getNewEpisodesAnimeCached = unstable_cache(
   async (batch: number) => {
     const pageSize = Math.max(12, batch * 12);
@@ -472,6 +568,27 @@ const getNewEpisodesAnimeCached = unstable_cache(
   },
   ["anilist-new-episodes"],
   { revalidate: NEW_EPISODES_REVALIDATE_SECONDS },
+);
+
+const getRecentlyCompletedAnimeCached = unstable_cache(
+  async (page: number) => {
+    const data = await anilistRequest<{
+      Page: { media: AniListMedia[]; pageInfo: AniListPageInfo };
+    }>(RECENTLY_COMPLETED_QUERY, {
+      page,
+      perPage: 18,
+    });
+
+    return {
+      items: data.Page.media.map(normalizeCard),
+      currentPage: data.Page.pageInfo.currentPage,
+      hasNextPage: data.Page.pageInfo.hasNextPage,
+      lastPage: data.Page.pageInfo.lastPage,
+      total: data.Page.pageInfo.total,
+    } satisfies PaginatedAnimeCards;
+  },
+  ["anilist-recently-completed"],
+  { revalidate: RECENTLY_COMPLETED_REVALIDATE_SECONDS },
 );
 
 const searchAnimeCached = unstable_cache(
@@ -519,8 +636,18 @@ export async function getTrendingAnime(page = 1): Promise<PaginatedAnimeCards> {
   return getTrendingAnimeCached(page);
 }
 
+export async function getPopularAnime(page = 1): Promise<PaginatedAnimeCards> {
+  return getPopularAnimeCached(page);
+}
+
 export async function getNewEpisodesAnime(batch = 1): Promise<PaginatedAnimeCards> {
   return getNewEpisodesAnimeCached(batch);
+}
+
+export async function getRecentlyCompletedAnime(
+  page = 1,
+): Promise<PaginatedAnimeCards> {
+  return getRecentlyCompletedAnimeCached(page);
 }
 
 export async function searchAnime(

@@ -17,7 +17,12 @@ interface HomePageProps {
   }>;
 }
 
-const VALID_FEEDS = new Set<HomeFeedType>(["popular", "trending", "new-episodes"]);
+const VALID_FEEDS = new Set<HomeFeedType>([
+  "popular",
+  "trending",
+  "recently-completed",
+  "new-episodes",
+]);
 
 function parseFeedType(value: string | undefined): HomeFeedType {
   return value && VALID_FEEDS.has(value as HomeFeedType)
@@ -38,6 +43,15 @@ function getHomeFeedMeta(feedType: HomeFeedType) {
         heading: "See what is trending right now.",
         sectionTitle: "Trending Anime",
         emptyTitle: "No trending anime available",
+        emptyMessage:
+          "This feed is not available right now. Try refreshing again in a few minutes.",
+      };
+    case "recently-completed":
+      return {
+        eyebrow: "Recently completed anime",
+        heading: "Catch up on shows that have just wrapped up.",
+        sectionTitle: "Recently Completed",
+        emptyTitle: "No recently completed anime available",
         emptyMessage:
           "This feed is not available right now. Try refreshing again in a few minutes.",
       };
@@ -110,6 +124,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                 ? "Browse standout titles from across the catalog."
                 : feedType === "trending"
                   ? "A quick look at what is getting the most attention."
+                  : feedType === "recently-completed"
+                    ? "See which recent series have finished and are worth catching up on."
                   : "Follow currently airing shows and recent episode activity."}
           </p>
         </div>

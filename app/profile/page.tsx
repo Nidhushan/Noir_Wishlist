@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { Pagination } from "@/components/pagination";
 import { SetupNotice } from "@/components/setup-notice";
 import { UserAnimeCard } from "@/components/user-anime-card";
 import { getCurrentAppUser } from "@/lib/auth";
@@ -31,7 +32,24 @@ function normalizeListStatus(value: string | undefined): UserListStatus {
 interface ProfilePageProps {
   searchParams: Promise<{
     list?: string;
+    page?: string;
   }>;
+}
+
+function normalizePage(value: string | undefined): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+function buildProfileHref(status: UserListStatus, page: number): string {
+  const params = new URLSearchParams();
+  params.set("list", status);
+
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+
+  return `/profile?${params.toString()}`;
 }
 
 export default async function ProfilePage({ searchParams }: ProfilePageProps) {
@@ -49,10 +67,12 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     redirect("/login");
   }
 
-  const { list } = await searchParams;
+  const { list, page } = await searchParams;
   const activeStatus = normalizeListStatus(list);
-  const items = await getCurrentUserAnimeSection(activeStatus);
-  const returnTo = `/profile?list=${activeStatus}`;
+  const currentPage = normalizePage(page);
+  const section = await getCurrentUserAnimeSection(activeStatus, currentPage);
+  const items = section?.items ?? [];
+  const returnTo = buildProfileHref(activeStatus, currentPage);
 
   return (
     <main className="mainContent">
@@ -79,7 +99,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <Link
               key={status}
               className={`profileNavLink${status === activeStatus ? " active" : ""}`}
-              href={`/profile?list=${status}`}
+              href={buildProfileHref(status, 1)}
             >
               {SECTION_LABELS[status]}
             </Link>
@@ -91,15 +111,24 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <p className="eyebrow">Library</p>
             <h2>{SECTION_LABELS[activeStatus]}</h2>
           </div>
-          <p className="sectionMeta">{items?.length ?? 0} saved</p>
+          <p className="sectionMeta">
+            {section?.total ?? 0} saved
+          </p>
         </div>
 
-        {items?.length ? (
-          <div className="savedAnimeGrid">
+        {items.length ? (
+          <>
+            <div className="savedAnimeGrid">
             {items.map((item) => (
               <UserAnimeCard key={item.id} item={item} returnTo={returnTo} />
             ))}
-          </div>
+            </div>
+            <Pagination
+              currentPage={section?.currentPage ?? currentPage}
+              hasNextPage={section?.hasNextPage ?? false}
+              buildHref={(nextPage) => buildProfileHref(activeStatus, nextPage)}
+            />
+          </>
         ) : (
           <div className="emptyState">
             <h2>Nothing here yet</h2>

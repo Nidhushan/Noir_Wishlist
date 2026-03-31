@@ -294,6 +294,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      feed_refresh_state: {
+        Row: {
+          feed_type: string;
+          last_attempted_at: string | null;
+          last_succeeded_at: string | null;
+          status: string;
+          error_message: string | null;
+          next_allowed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          feed_type: string;
+          last_attempted_at?: string | null;
+          last_succeeded_at?: string | null;
+          status?: string;
+          error_message?: string | null;
+          next_allowed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          feed_type?: string;
+          last_attempted_at?: string | null;
+          last_succeeded_at?: string | null;
+          status?: string;
+          error_message?: string | null;
+          next_allowed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
