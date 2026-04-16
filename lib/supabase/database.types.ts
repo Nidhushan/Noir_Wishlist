@@ -327,6 +327,132 @@ export interface Database {
         };
         Relationships: [];
       };
+      anime_event_state: {
+        Row: {
+          anime_id: number;
+          last_episode_number: number | null;
+          last_episode_at: string | null;
+          is_completed: boolean;
+          completed_at: string | null;
+          last_checked_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          anime_id: number;
+          last_episode_number?: number | null;
+          last_episode_at?: string | null;
+          is_completed?: boolean;
+          completed_at?: string | null;
+          last_checked_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          anime_id?: number;
+          last_episode_number?: number | null;
+          last_episode_at?: string | null;
+          is_completed?: boolean;
+          completed_at?: string | null;
+          last_checked_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      anime_events: {
+        Row: {
+          id: number;
+          anime_id: number;
+          event_type: string;
+          episode_number: number | null;
+          event_occurred_at: string;
+          payload: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: number;
+          anime_id: number;
+          event_type: string;
+          episode_number?: number | null;
+          event_occurred_at: string;
+          payload?: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: number;
+          anime_id?: number;
+          event_type?: string;
+          episode_number?: number | null;
+          event_occurred_at?: string;
+          payload?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      user_notification_preferences: {
+        Row: {
+          user_id: string;
+          new_episode_enabled: boolean;
+          anime_completed_enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          new_episode_enabled?: boolean;
+          anime_completed_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          new_episode_enabled?: boolean;
+          anime_completed_enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      user_notifications: {
+        Row: {
+          id: number;
+          user_id: string;
+          anime_event_id: number;
+          anime_id: number;
+          type: string;
+          title: string;
+          message: string;
+          is_read: boolean;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: {
+          id?: number;
+          user_id: string;
+          anime_event_id: number;
+          anime_id: number;
+          type: string;
+          title: string;
+          message: string;
+          is_read?: boolean;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Update: {
+          id?: number;
+          user_id?: string;
+          anime_event_id?: number;
+          anime_id?: number;
+          type?: string;
+          title?: string;
+          message?: string;
+          is_read?: boolean;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

@@ -10,6 +10,7 @@ import { hasSupabasePublicEnv } from "@/lib/env";
 interface TopbarUserState {
   user: User | null;
   displayName: string | null;
+  unreadCount: number;
 }
 
 function getPreferredDisplayName(user: User | null, displayName: string | null): string | null {
@@ -33,6 +34,7 @@ export function TopbarAuth() {
   const [state, setState] = useState<TopbarUserState>({
     user: null,
     displayName: null,
+    unreadCount: 0,
   });
 
   useEffect(() => {
@@ -53,16 +55,23 @@ export function TopbarAuth() {
 
       if (!user || cancelled) {
         if (!cancelled) {
-          setState({ user: null, displayName: null });
+          setState({ user: null, displayName: null, unreadCount: 0 });
         }
         return;
       }
 
-      const { data: profile } = await browserClient
-        .from("profiles")
-        .select("display_name, username")
-        .eq("id", user.id)
-        .maybeSingle();
+      const [{ data: profile }, { count: unreadCount }] = await Promise.all([
+        browserClient
+          .from("profiles")
+          .select("display_name, username")
+          .eq("id", user.id)
+          .maybeSingle(),
+        browserClient
+          .from("user_notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false),
+      ]);
 
       if (cancelled) {
         return;
@@ -76,6 +85,7 @@ export function TopbarAuth() {
       setState({
         user,
         displayName: getPreferredDisplayName(user, profileDisplayName),
+        unreadCount: unreadCount ?? 0,
       });
     }
 
@@ -112,6 +122,12 @@ export function TopbarAuth() {
 
   return (
     <div className="topbarActions">
+      <Link className="topbarButton ghost notificationTopbarLink" href="/notifications">
+        Notifications
+        {state.unreadCount ? (
+          <span className="topbarBadge">{state.unreadCount}</span>
+        ) : null}
+      </Link>
       <Link className="topbarButton ghost" href="/profile">
         {state.displayName || "Profile"}
       </Link>

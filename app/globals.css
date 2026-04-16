@@ -115,6 +115,26 @@ img {
   flex-wrap: wrap;
 }
 
+.notificationTopbarLink {
+  position: relative;
+  gap: 8px;
+}
+
+.topbarBadge {
+  display: inline-flex;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 122, 168, 0.95), rgba(194, 119, 255, 0.95));
+  color: #fff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
 .topbarMeta {
   color: var(--text-soft);
   font-size: 0.9rem;
@@ -1039,6 +1059,140 @@ img {
   align-items: stretch;
 }
 
+.notificationPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.notificationList {
+  display: grid;
+  gap: 14px;
+}
+
+.notificationCard {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(194, 119, 255, 0.14);
+  background: rgba(16, 11, 30, 0.78);
+}
+
+.notificationCard.unread {
+  border-color: rgba(255, 122, 168, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 122, 168, 0.08);
+}
+
+.notificationMedia {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.notificationBody {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.notificationHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.notificationType {
+  margin: 0 0 4px;
+  color: var(--accent-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.notificationTitle {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.notificationTitle a {
+  color: inherit;
+}
+
+.notificationUnreadBadge {
+  display: inline-flex;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 122, 168, 0.22);
+  background: rgba(255, 122, 168, 0.12);
+  color: #ffd0df;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.notificationMessage {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.notificationFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.notificationTimestamp {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.notificationPreferencesForm {
+  display: grid;
+  gap: 16px;
+}
+
+.notificationPreferenceOption {
+  display: flex;
+  align-items: start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(194, 119, 255, 0.14);
+  background: rgba(16, 11, 30, 0.68);
+}
+
+.notificationPreferenceOption input {
+  margin-top: 3px;
+}
+
+.notificationPreferenceOption span {
+  display: grid;
+  gap: 4px;
+}
+
+.notificationPreferenceOption strong {
+  font-size: 0.98rem;
+}
+
+.notificationPreferenceOption small {
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.notificationPreferencesActions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .savedAnimeCard {
   display: grid;
   grid-template-rows: auto 1fr;
@@ -1458,6 +1612,10 @@ img {
     gap: 14px;
   }
 
+  .notificationCard {
+    grid-template-columns: 72px 1fr;
+  }
+
   .detailPoster,
   .loadingDetail .detailPoster {
     max-width: 220px;
@@ -1475,6 +1633,20 @@ img {
 
   .savedAnimeGrid {
     grid-template-columns: 1fr;
+  }
+
+  .notificationCard {
+    grid-template-columns: 1fr;
+  }
+
+  .notificationMedia {
+    max-width: 120px;
+  }
+
+  .notificationHeader,
+  .notificationFooter {
+    flex-direction: column;
+    align-items: start;
   }
 
   .animeCardTopline,

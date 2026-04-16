@@ -10,6 +10,10 @@ import {
   isAniListTemporarilyUnavailable,
   searchAnime,
 } from "@/lib/anilist";
+import {
+  processNewEpisodeFeedNotifications,
+  processRecentlyCompletedFeedNotifications,
+} from "@/lib/notifications";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/lib/supabase/database.types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -710,6 +714,23 @@ async function refreshStoredFeed(
     await upsertAnimeBasicRecords(liveFeed.items);
     await storeFeedSnapshot(feedType, snapshotDate, page, liveFeed);
     await storeFeedItems(feedType, snapshotDate, page, liveFeed);
+
+    if (feedType === "new-episodes") {
+      try {
+        await processNewEpisodeFeedNotifications(liveFeed.items);
+      } catch (error) {
+        console.error("new episode notification processing failed", error);
+      }
+    }
+
+    if (feedType === "recently-completed") {
+      try {
+        await processRecentlyCompletedFeedNotifications(liveFeed.items);
+      } catch (error) {
+        console.error("completed anime notification processing failed", error);
+      }
+    }
+
     await markFeedRefreshSuccess(feedType);
 
     return getResolvedFeed(feedType, snapshotDate, page);
