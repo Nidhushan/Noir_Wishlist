@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { updateNotificationPreferencesAction } from "@/app/actions/notifications";
 import { Pagination } from "@/components/pagination";
 import { SetupNotice } from "@/components/setup-notice";
 import { UserAnimeCard } from "@/components/user-anime-card";
 import { getCurrentAppUser } from "@/lib/auth";
 import { hasSupabasePublicEnv } from "@/lib/env";
+import { getCurrentUserNotificationPreferences } from "@/lib/notifications";
 import {
   getCurrentUserAnimeSection,
   USER_LIST_STATUSES,
@@ -71,6 +73,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const activeStatus = normalizeListStatus(list);
   const currentPage = normalizePage(page);
   const section = await getCurrentUserAnimeSection(activeStatus, currentPage);
+  const notificationPreferences = await getCurrentUserNotificationPreferences();
   const items = section?.items ?? [];
   const returnTo = buildProfileHref(activeStatus, currentPage);
 
@@ -135,6 +138,52 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
             <p>Search for anime and save titles to start filling this section.</p>
           </div>
         )}
+      </section>
+
+      <section className="detailPanel">
+        <div className="sectionHeader">
+          <div>
+            <p className="eyebrow">Notifications</p>
+            <h2>Alert preferences</h2>
+          </div>
+        </div>
+
+        <form action={updateNotificationPreferencesAction} className="notificationPreferencesForm">
+          <input type="hidden" name="returnTo" value={returnTo} />
+
+          <label className="notificationPreferenceOption">
+            <input
+              type="checkbox"
+              name="newEpisodeEnabled"
+              defaultChecked={notificationPreferences?.newEpisodeEnabled ?? true}
+            />
+            <span>
+              <strong>New episodes</strong>
+              <small>Notify me when titles in Wishlist or Watching get a new episode.</small>
+            </span>
+          </label>
+
+          <label className="notificationPreferenceOption">
+            <input
+              type="checkbox"
+              name="animeCompletedEnabled"
+              defaultChecked={notificationPreferences?.animeCompletedEnabled ?? true}
+            />
+            <span>
+              <strong>Finished airing</strong>
+              <small>Notify me when titles in Wishlist or Watching finish airing.</small>
+            </span>
+          </label>
+
+          <div className="notificationPreferencesActions">
+            <button className="paginationButton" type="submit">
+              Save preferences
+            </button>
+            <Link className="topbarButton ghost" href="/notifications">
+              Open notifications
+            </Link>
+          </div>
+        </form>
       </section>
     </main>
   );

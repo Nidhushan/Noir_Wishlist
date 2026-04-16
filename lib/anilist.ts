@@ -22,6 +22,12 @@ interface AniListCoverImage {
   extraLarge: Nullable<string>;
 }
 
+interface AniListFuzzyDate {
+  year: Nullable<number>;
+  month: Nullable<number>;
+  day: Nullable<number>;
+}
+
 interface AniListMedia {
   id: number;
   title: AniListTitle;
@@ -35,6 +41,7 @@ interface AniListMedia {
   seasonYear: Nullable<number>;
   averageScore: Nullable<number>;
   popularity: Nullable<number>;
+  endDate?: Nullable<AniListFuzzyDate>;
   description?: Nullable<string>;
   genres?: Nullable<string[]>;
   siteUrl?: Nullable<string>;
@@ -68,6 +75,9 @@ export interface AnimeCard {
   seasonYear: number | null;
   averageScore: number | null;
   popularity: number | null;
+  latestEpisodeNumber?: number | null;
+  latestEpisodeAt?: string | null;
+  completedAt?: string | null;
 }
 
 export interface AnimeDetail extends AnimeCard {
@@ -274,6 +284,8 @@ const NEW_EPISODES_QUERY = `
         total
       }
       airingSchedules(notYetAired: false, sort: [TIME_DESC]) {
+        episode
+        airingAt
         media {
           id
           title {
@@ -294,6 +306,11 @@ const NEW_EPISODES_QUERY = `
           seasonYear
           averageScore
           popularity
+          endDate {
+            year
+            month
+            day
+          }
         }
       }
     }
@@ -334,6 +351,11 @@ const RECENTLY_COMPLETED_QUERY = `
         seasonYear
         averageScore
         popularity
+        endDate {
+          year
+          month
+          day
+        }
       }
     }
   }
@@ -371,6 +393,15 @@ function normalizeTitle(title: AniListTitle): string {
   return title.english || title.romaji || title.native || "Untitled";
 }
 
+function normalizeFuzzyDate(value: Nullable<AniListFuzzyDate> | undefined): string | null {
+  if (!value?.year || !value?.month || !value?.day) {
+    return null;
+  }
+
+  const date = new Date(Date.UTC(value.year, value.month - 1, value.day, 12, 0, 0));
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 function normalizeCard(media: AniListMedia): AnimeCard {
   return {
     anilistId: media.id,
@@ -388,6 +419,9 @@ function normalizeCard(media: AniListMedia): AnimeCard {
     seasonYear: media.seasonYear,
     averageScore: media.averageScore,
     popularity: media.popularity,
+    latestEpisodeNumber: null,
+    latestEpisodeAt: null,
+    completedAt: normalizeFuzzyDate(media.endDate),
   };
 }
 
@@ -536,6 +570,8 @@ const getNewEpisodesAnimeCached = unstable_cache(
       Page: {
         pageInfo: AniListPageInfo;
         airingSchedules: Array<{
+          episode: number | null;
+          airingAt: number | null;
           media: AniListMedia | null;
         }>;
       };
@@ -546,17 +582,20 @@ const getNewEpisodesAnimeCached = unstable_cache(
 
     const seen = new Set<number>();
     const items = data.Page.airingSchedules
-      .map((entry) => entry.media)
-      .filter((media): media is AniListMedia => Boolean(media))
-      .filter((media) => {
-        if (seen.has(media.id)) {
+      .filter((entry): entry is { episode: number | null; airingAt: number | null; media: AniListMedia } => Boolean(entry.media))
+      .filter((entry) => {
+        if (seen.has(entry.media.id)) {
           return false;
         }
 
-        seen.add(media.id);
+        seen.add(entry.media.id);
         return true;
       })
-      .map(normalizeCard);
+      .map((entry) => ({
+        ...normalizeCard(entry.media),
+        latestEpisodeNumber: entry.episode,
+        latestEpisodeAt: entry.airingAt ? new Date(entry.airingAt * 1000).toISOString() : null,
+      }));
 
     return {
       items,
