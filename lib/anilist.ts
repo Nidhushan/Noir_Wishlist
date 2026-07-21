@@ -45,6 +45,10 @@ interface AniListMedia {
   description?: Nullable<string>;
   genres?: Nullable<string[]>;
   siteUrl?: Nullable<string>;
+  nextAiringEpisode?: Nullable<{
+    episode: Nullable<number>;
+    airingAt: Nullable<number>;
+  }>;
 }
 
 interface AniListPageInfo {
@@ -92,6 +96,15 @@ export interface PaginatedAnimeCards {
   hasNextPage: boolean;
   lastPage: number;
   total: number;
+}
+
+export interface TrackedAnimeNotificationState {
+  anilistId: number;
+  status: string | null;
+  totalEpisodes: number | null;
+  completedAt: string | null;
+  nextEpisodeNumber: number | null;
+  nextEpisodeAt: string | null;
 }
 
 export const SEARCH_SORT_OPTIONS = [
@@ -361,6 +374,27 @@ const RECENTLY_COMPLETED_QUERY = `
   }
 `;
 
+const TRACKED_NOTIFICATION_STATES_QUERY = `
+  query TrackedNotificationStates($ids: [Int], $page: Int!, $perPage: Int!) {
+    Page(page: $page, perPage: $perPage) {
+      media(type: ANIME, id_in: $ids) {
+        id
+        status
+        episodes
+        endDate {
+          year
+          month
+          day
+        }
+        nextAiringEpisode {
+          episode
+          airingAt
+        }
+      }
+    }
+  }
+`;
+
 function decodeHtmlEntities(value: string): string {
   return value
     .replace(/&quot;/g, '"')
@@ -519,6 +553,46 @@ async function anilistRequest<TData>(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function getTrackedAnimeNotificationStates(
+  anilistIds: number[],
+): Promise<TrackedAnimeNotificationState[]> {
+  const ids = Array.from(
+    new Set(anilistIds.filter((id) => Number.isInteger(id) && id > 0)),
+  );
+
+  if (ids.length === 0) {
+    return [];
+  }
+
+  if (ids.length > 50) {
+    throw new AniListError(
+      "invalid_request",
+      "Tracked notification state requests support at most 50 anime.",
+      400,
+      false,
+    );
+  }
+
+  const data = await anilistRequest<{
+    Page: { media: AniListMedia[] };
+  }>(TRACKED_NOTIFICATION_STATES_QUERY, {
+    ids,
+    page: 1,
+    perPage: ids.length,
+  });
+
+  return data.Page.media.map((media) => ({
+    anilistId: media.id,
+    status: media.status,
+    totalEpisodes: media.episodes,
+    completedAt: normalizeFuzzyDate(media.endDate),
+    nextEpisodeNumber: media.nextAiringEpisode?.episode ?? null,
+    nextEpisodeAt: media.nextAiringEpisode?.airingAt
+      ? new Date(media.nextAiringEpisode.airingAt * 1000).toISOString()
+      : null,
+  }));
 }
 
 const getTrendingAnimeCached = unstable_cache(

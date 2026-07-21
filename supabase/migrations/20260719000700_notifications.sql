@@ -1,3 +1,4 @@
+-- Migration 007: notification schema.
 create table if not exists public.anime_event_state (
   anime_id bigint primary key references public.anime(id) on delete cascade,
   last_episode_number integer,

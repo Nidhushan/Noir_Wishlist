@@ -158,6 +158,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </p>
           </section>
 
+          {feed?.notice ? (
+            <StatusPanel
+              title={
+                feed.notice.code === "persistence-failed"
+                  ? "Storage update delayed"
+                  : "Showing fallback data"
+              }
+              message={feed.notice.message}
+            />
+          ) : null}
+
           <HomeAnimeGrid
             items={feed?.items ?? []}
             emptyTitle={feedMeta.emptyTitle}

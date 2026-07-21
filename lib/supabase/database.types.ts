@@ -73,6 +73,7 @@ export interface Database {
           metadata_tier: string;
           last_synced_at: string;
           detail_synced_at: string | null;
+          row_version: number;
           created_at: string;
           updated_at: string;
         };
@@ -106,6 +107,7 @@ export interface Database {
           metadata_tier?: string;
           last_synced_at?: string;
           detail_synced_at?: string | null;
+          row_version?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -139,6 +141,7 @@ export interface Database {
           metadata_tier?: string;
           last_synced_at?: string;
           detail_synced_at?: string | null;
+          row_version?: number;
           created_at?: string;
           updated_at?: string;
         };
@@ -232,6 +235,7 @@ export interface Database {
           total: number;
           has_next_page: boolean;
           last_page: number;
+          item_count: number;
           source: string;
           created_at: string;
           updated_at: string;
@@ -245,6 +249,7 @@ export interface Database {
           total?: number;
           has_next_page?: boolean;
           last_page?: number;
+          item_count?: number;
           source?: string;
           created_at?: string;
           updated_at?: string;
@@ -258,6 +263,7 @@ export interface Database {
           total?: number;
           has_next_page?: boolean;
           last_page?: number;
+          item_count?: number;
           source?: string;
           created_at?: string;
           updated_at?: string;
@@ -327,12 +333,170 @@ export interface Database {
         };
         Relationships: [];
       };
+      catalog_feed_refresh_state: {
+        Row: {
+          feed_type: string;
+          page: number;
+          status: string;
+          lease_token: string | null;
+          lease_acquired_at: string | null;
+          lease_expires_at: string | null;
+          last_attempted_at: string | null;
+          last_succeeded_at: string | null;
+          failure_count: number;
+          next_allowed_at: string | null;
+          last_error_code: string | null;
+          last_error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          feed_type: string;
+          page: number;
+          status?: string;
+          lease_token?: string | null;
+          lease_acquired_at?: string | null;
+          lease_expires_at?: string | null;
+          last_attempted_at?: string | null;
+          last_succeeded_at?: string | null;
+          failure_count?: number;
+          next_allowed_at?: string | null;
+          last_error_code?: string | null;
+          last_error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          feed_type?: string;
+          page?: number;
+          status?: string;
+          lease_token?: string | null;
+          lease_acquired_at?: string | null;
+          lease_expires_at?: string | null;
+          last_attempted_at?: string | null;
+          last_succeeded_at?: string | null;
+          failure_count?: number;
+          next_allowed_at?: string | null;
+          last_error_code?: string | null;
+          last_error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      notification_observations: {
+        Row: {
+          id: number;
+          anime_id: number;
+          observation_type: string;
+          episode_number: number | null;
+          event_occurred_at: string;
+          source_feed: string;
+          source_snapshot_date: string;
+          source_page: number;
+          payload: Json;
+          status: string;
+          attempt_count: number;
+          available_at: string;
+          processed_at: string | null;
+          last_error_code: string | null;
+          last_error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          anime_id: number;
+          observation_type: string;
+          episode_number?: number | null;
+          event_occurred_at: string;
+          source_feed: string;
+          source_snapshot_date: string;
+          source_page: number;
+          payload?: Json;
+          status?: string;
+          attempt_count?: number;
+          available_at?: string;
+          processed_at?: string | null;
+          last_error_code?: string | null;
+          last_error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          anime_id?: number;
+          observation_type?: string;
+          episode_number?: number | null;
+          event_occurred_at?: string;
+          source_feed?: string;
+          source_snapshot_date?: string;
+          source_page?: number;
+          payload?: Json;
+          status?: string;
+          attempt_count?: number;
+          available_at?: string;
+          processed_at?: string | null;
+          last_error_code?: string | null;
+          last_error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      anime_sources: {
+        Row: {
+          id: number;
+          anime_id: number;
+          provider: string;
+          external_id: string | null;
+          source_fingerprint: string | null;
+          canonical_url: string | null;
+          confidence: string;
+          metadata: Json;
+          first_seen_at: string;
+          last_seen_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          anime_id: number;
+          provider: string;
+          external_id?: string | null;
+          source_fingerprint?: string | null;
+          canonical_url?: string | null;
+          confidence?: string;
+          metadata?: Json;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          anime_id?: number;
+          provider?: string;
+          external_id?: string | null;
+          source_fingerprint?: string | null;
+          canonical_url?: string | null;
+          confidence?: string;
+          metadata?: Json;
+          first_seen_at?: string;
+          last_seen_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       anime_event_state: {
         Row: {
           anime_id: number;
           last_episode_number: number | null;
           last_episode_at: string | null;
+          episode_initialized: boolean;
           is_completed: boolean;
+          completion_initialized: boolean;
           completed_at: string | null;
           last_checked_at: string;
           created_at: string;
@@ -342,7 +506,9 @@ export interface Database {
           anime_id: number;
           last_episode_number?: number | null;
           last_episode_at?: string | null;
+          episode_initialized?: boolean;
           is_completed?: boolean;
+          completion_initialized?: boolean;
           completed_at?: string | null;
           last_checked_at?: string;
           created_at?: string;
@@ -352,7 +518,9 @@ export interface Database {
           anime_id?: number;
           last_episode_number?: number | null;
           last_episode_at?: string | null;
+          episode_initialized?: boolean;
           is_completed?: boolean;
+          completion_initialized?: boolean;
           completed_at?: string | null;
           last_checked_at?: string;
           created_at?: string;
@@ -455,7 +623,98 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      try_acquire_catalog_feed_lease: {
+        Args: {
+          p_feed_type: string;
+          p_page: number;
+          p_lease_token: string;
+          p_lease_seconds?: number;
+        };
+        Returns: Json;
+      };
+      fail_catalog_feed_refresh: {
+        Args: {
+          p_feed_type: string;
+          p_page: number;
+          p_lease_token: string;
+          p_error_code: string;
+          p_error_message: string;
+        };
+        Returns: boolean;
+      };
+      commit_catalog_feed_refresh: {
+        Args: {
+          p_feed_type: string;
+          p_page: number;
+          p_snapshot_date: string;
+          p_total: number;
+          p_has_next_page: boolean;
+          p_last_page: number;
+          p_lease_token: string;
+          p_items: Json;
+        };
+        Returns: Json;
+      };
+      commit_catalog_feed_refresh_v2: {
+        Args: {
+          p_feed_type: string;
+          p_page: number;
+          p_snapshot_date: string;
+          p_total: number;
+          p_has_next_page: boolean;
+          p_last_page: number;
+          p_lease_token: string;
+          p_items: Json;
+          p_observations?: Json;
+        };
+        Returns: Json;
+      };
+      read_catalog_feed_candidates: {
+        Args: {
+          p_feed_type: string;
+          p_page: number;
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      process_notification_observation_batch: {
+        Args: {
+          p_limit?: number;
+        };
+        Returns: Json;
+      };
+      list_notification_tracking_targets_v1: {
+        Args: {
+          p_after_anime_id?: number;
+          p_limit?: number;
+        };
+        Returns: Array<{
+          anime_id: number;
+          anilist_id: number;
+        }>;
+      };
+      enqueue_notification_observation_batch_v1: {
+        Args: {
+          p_observations: Json;
+          p_source_run_id?: number | null;
+        };
+        Returns: Json;
+      };
+      upsert_anilist_anime_batch_v1: {
+        Args: {
+          p_records: Json;
+          p_metadata_tier: string;
+        };
+        Returns: Json;
+      };
+      upsert_offline_anime_batch_v1: {
+        Args: {
+          p_records: Json;
+        };
+        Returns: Json;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

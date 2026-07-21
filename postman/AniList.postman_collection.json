@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Noir Watchlist - AniList",
+    "description": "AniList GraphQL operations used by Noir Watchlist. These public read-only requests do not require authentication.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "anilistUrl", "value": "https://graphql.anilist.co" },
+    { "key": "page", "value": "1" },
+    { "key": "perPage", "value": "18" },
+    { "key": "newEpisodesPerPage", "value": "12" },
+    { "key": "search", "value": "Naruto" },
+    { "key": "animeId", "value": "20" }
+  ],
+  "item": [
+    {
+      "name": "Trending anime",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query TrendingAnime($page: Int!, $perPage: Int!) {\n  Page(page: $page, perPage: $perPage) {\n    pageInfo { currentPage hasNextPage lastPage total }\n    media(type: ANIME, isAdult: false, sort: [TRENDING_DESC, POPULARITY_DESC]) {\n      id\n      title { romaji english native }\n      coverImage { large extraLarge }\n      bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n    }\n  }\n}",
+            "variables": "{\n  \"page\": {{page}},\n  \"perPage\": {{perPage}}\n}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Popular anime",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query PopularAnime($page: Int!, $perPage: Int!) {\n  Page(page: $page, perPage: $perPage) {\n    pageInfo { currentPage hasNextPage lastPage total }\n    media(type: ANIME, isAdult: false, sort: [POPULARITY_DESC, SCORE_DESC]) {\n      id\n      title { romaji english native }\n      coverImage { large extraLarge }\n      bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n    }\n  }\n}",
+            "variables": "{\n  \"page\": {{page}},\n  \"perPage\": {{perPage}}\n}"
+          }
+        }
+      }
+    },
+    {
+      "name": "New episodes",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query NewEpisodesAnime($page: Int!, $perPage: Int!) {\n  Page(page: $page, perPage: $perPage) {\n    pageInfo { currentPage hasNextPage lastPage total }\n    airingSchedules(notYetAired: false, sort: [TIME_DESC]) {\n      episode airingAt\n      media {\n        id\n        title { romaji english native }\n        coverImage { large extraLarge }\n        bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n        endDate { year month day }\n      }\n    }\n  }\n}",
+            "variables": "{\n  \"page\": 1,\n  \"perPage\": {{newEpisodesPerPage}}\n}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Recently completed anime",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query RecentlyCompletedAnime($page: Int!, $perPage: Int!) {\n  Page(page: $page, perPage: $perPage) {\n    pageInfo { currentPage hasNextPage lastPage total }\n    media(type: ANIME, isAdult: false, status: FINISHED, sort: [END_DATE_DESC, POPULARITY_DESC]) {\n      id\n      title { romaji english native }\n      coverImage { large extraLarge }\n      bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n      endDate { year month day }\n    }\n  }\n}",
+            "variables": "{\n  \"page\": {{page}},\n  \"perPage\": {{perPage}}\n}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Search anime",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query SearchAnime($search: String!, $page: Int!, $perPage: Int!, $sort: [MediaSort]) {\n  Page(page: $page, perPage: $perPage) {\n    pageInfo { currentPage hasNextPage lastPage total }\n    media(type: ANIME, isAdult: false, search: $search, sort: $sort) {\n      id\n      title { romaji english native }\n      coverImage { large extraLarge }\n      bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n    }\n  }\n}",
+            "variables": "{\n  \"search\": \"{{search}}\",\n  \"page\": {{page}},\n  \"perPage\": {{perPage}},\n  \"sort\": [\"SEARCH_MATCH\", \"POPULARITY_DESC\"]\n}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Anime detail",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Accept", "value": "application/json" }
+        ],
+        "url": "{{anilistUrl}}",
+        "body": {
+          "mode": "graphql",
+          "graphql": {
+            "query": "query AnimeDetail($id: Int!) {\n  Media(id: $id, type: ANIME) {\n    id\n    title { romaji english native }\n    coverImage { large extraLarge }\n    bannerImage format status episodes countryOfOrigin season seasonYear averageScore popularity\n    description(asHtml: false)\n    genres\n    siteUrl\n  }\n}",
+            "variables": "{\n  \"id\": {{animeId}}\n}"
+          }
+        }
+      }
+    }
+  ]
+}

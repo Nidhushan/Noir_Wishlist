@@ -39,7 +39,13 @@ export async function upsertUserAnimeEntry(input: {
     return { error: "Please log in before saving anime." };
   }
 
-  const anime = await ensureAnimePersisted(input.anilistId);
+  let anime: AnimeRecord | null;
+
+  try {
+    anime = await ensureAnimePersisted(input.anilistId);
+  } catch {
+    return { error: "The anime catalog is temporarily unavailable." };
+  }
 
   if (!anime) {
     return { error: "The anime could not be stored in the catalog." };

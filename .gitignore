@@ -6,6 +6,8 @@ node_modules/
 out/
 dist/
 coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 
 # local env files
@@ -18,6 +20,8 @@ coverage/
 
 # deployment / local tooling
 .vercel/
+supabase/.branches/
+supabase/.temp/
 
 # logs
 *.log

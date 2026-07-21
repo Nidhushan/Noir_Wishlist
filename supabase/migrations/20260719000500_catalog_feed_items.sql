@@ -1,3 +1,4 @@
+-- Migration 005: catalog feed items.
 create table if not exists public.catalog_feed_items (
   id bigserial primary key,
   feed_type text not null,

@@ -8,7 +8,8 @@ function normalizeTitleKey(value) {
   return (value || "")
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[^\w\s]/g, "")
+    .replace(/\p{Mark}/gu, "")
+    .replace(/[^\p{Letter}\p{Number}_\s]/gu, "")
     .replace(/_/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -78,8 +79,7 @@ function toAnimeRow(row, sourceFingerprint) {
 
   return {
     anilist_id: anilistId,
-    source_fingerprint: anilistId ? null : sourceFingerprint,
-    source_provider: "anime-offline-database",
+    source_fingerprint: sourceFingerprint,
     source_urls: Array.isArray(row.sources) ? row.sources : [],
     title_display: row.title,
     title_normalized: normalizeTitleKey(row.title),
@@ -96,8 +96,6 @@ function toAnimeRow(row, sourceFingerprint) {
       typeof row.score?.arithmeticMean === "number"
         ? Math.round(row.score.arithmeticMean * 10)
         : null,
-    metadata_tier: "basic",
-    last_synced_at: new Date().toISOString(),
   };
 }
 
@@ -130,27 +128,12 @@ async function main() {
       return;
     }
 
-    const withAniListId = batch.filter((row) => row.anilist_id);
-    const withoutAniListId = batch.filter((row) => !row.anilist_id);
+    const { error } = await supabase.rpc("upsert_offline_anime_batch_v1", {
+      p_records: batch,
+    });
 
-    if (withAniListId.length) {
-      const { error } = await supabase
-        .from("anime")
-        .upsert(withAniListId, { onConflict: "anilist_id" });
-
-      if (error) {
-        throw error;
-      }
-    }
-
-    if (withoutAniListId.length) {
-      const { error } = await supabase
-        .from("anime")
-        .upsert(withoutAniListId, { onConflict: "source_fingerprint" });
-
-      if (error) {
-        throw error;
-      }
+    if (error) {
+      throw error;
     }
 
     inserted += batch.length;
