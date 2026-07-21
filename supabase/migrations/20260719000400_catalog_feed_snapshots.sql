@@ -1,3 +1,4 @@
+-- Migration 004: catalog feed snapshots.
 create table if not exists public.catalog_feed_snapshots (
   id bigserial primary key,
   feed_type text not null,

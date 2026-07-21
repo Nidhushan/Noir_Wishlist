@@ -1,3 +1,4 @@
+-- Migration 006: legacy feed refresh state.
 create table if not exists public.feed_refresh_state (
   feed_type text primary key,
   last_attempted_at timestamptz,

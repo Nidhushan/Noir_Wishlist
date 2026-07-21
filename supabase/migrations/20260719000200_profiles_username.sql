@@ -1,3 +1,4 @@
+-- Migration 002: profile usernames.
 alter table public.profiles
   add column if not exists username text;
 

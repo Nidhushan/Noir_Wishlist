@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 
 import { CatalogImage } from "@/components/catalog-image";
 import { SaveAnimeForm } from "@/components/save-anime-form";
@@ -20,6 +21,8 @@ import {
 import { getCurrentUserAnimeMapByAniListIds } from "@/lib/user-anime";
 
 export const dynamic = "force-dynamic";
+
+const getAnimeDetailForRequest = cache(getCatalogAnimeDetail);
 
 interface AnimeDetailPageProps {
   params: Promise<{
@@ -40,7 +43,7 @@ export async function generateMetadata({
   }
 
   try {
-    const result = await getCatalogAnimeDetail(numericId);
+    const result = await getAnimeDetailForRequest(numericId);
     const anime = result.anime;
 
     if (!anime) {
@@ -88,7 +91,7 @@ export default async function AnimeDetailPage({
   }
 
   try {
-    detailResult = await getCatalogAnimeDetail(numericId);
+    detailResult = await getAnimeDetailForRequest(numericId);
   } catch (error) {
     if (error instanceof AniListError && error.code === "invalid_request") {
       notFound();

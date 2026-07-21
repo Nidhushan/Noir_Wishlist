@@ -1,3 +1,4 @@
+-- Migration 003: backfill profile usernames.
 do $$
 declare
   profile_row record;
